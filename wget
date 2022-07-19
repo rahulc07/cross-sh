@@ -1,0 +1,10 @@
+https://ftp.gnu.org/gnu/gcc/gcc-12.1.0/gcc-12.1.0.tar.xz
+https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.18.10.tar.xz
+https://ftp.gnu.org/gnu/binutils/binutils-2.38.tar.xz
+https://ftp.gnu.org/gnu/glibc/glibc-2.35.tar.xz
+https://ftp.gnu.org/gnu/gmp/gmp-6.2.1.tar.xz
+https://ftp.gnu.org/gnu/mpc/mpc-1.2.1.tar.gz
+https://ftp.gnu.org/gnu/mpfr/mpfr-4.1.0.tar.xz
+https://musl.libc.org/releases/musl-1.2.3.tar.gz
+ftp://sourceware.org/pub/newlib/newlib-4.2.0.20211231.tar.gz
+https://github.com/picolibc/picolibc/releases/download/1.7.7/picolibc-1.7.7.tar.xz
