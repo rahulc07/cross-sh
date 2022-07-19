@@ -15,11 +15,11 @@ cd $pkg-$LD_VER
 mkdir build
 cd build
 
-../configure --prefix=$LOCATION/usr --with-sysroot=$LOCATION --disable-nls --disable-werror --target=$TARGET_CROSS
+../configure --prefix=/usr --with-sysroot=$LOCATION --disable-nls --disable-werror --target=$TARGET_CROSS
 
 make -j$JOBS
 
-make install
+make DESTDIR=$LOCATION install
 
 # Delete the old files
 cd $BUILD_DIR

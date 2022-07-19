@@ -22,11 +22,11 @@ mv -v mpc-1.2.1 mpc
 mkdir build
 cd build
 
-../configure --prefix=$LOCATION/usr --disable-threads --disable-shared --with-newlib --without-headers --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS
+../configure --prefix=/usr --disable-threads --disable-shared --with-newlib --without-headers --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS
 
 make all-gcc all-target-libgcc -j$JOBS
 
-sudo make PATH=$LOCATION/bin:$PATH install-gcc install-target-libgcc
+sudo make PATH=$LOCATION/usr/bin:$PATH DESTDIR=$LOCATION install-gcc install-target-libgcc
 
 # Delete the old files
 cd $BUILD_DIR

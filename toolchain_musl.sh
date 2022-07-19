@@ -15,11 +15,11 @@ cd $pkg-$MUSL_VER
 mkdir build
 cd build
 
-../configure --prefix=$LOCATION/usr --host=$TARGET_CROSS 
+../configure --prefix=/usr --host=$TARGET_CROSS 
 
 make -j$JOBS
 
-make install
+make DESTDIR=$LOCATION install
 
 # Delete the old files
 cd $BUILD_DIR

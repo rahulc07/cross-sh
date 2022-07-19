@@ -15,11 +15,11 @@ cd $pkg-$NEWLIB_VER
 mkdir build
 cd build
 
-../configure --prefix=$LOCATION/usr --host=$TARGET_CROSS --with-headers=$LOCATION/include
+../configure --prefix=/usr --host=$TARGET_CROSS --with-headers=$LOCATION/include
 
 make -j$JOBS
 
-make install
+make DESTDIR=$LOCATION install
 
 # Delete the old files
 cd $BUILD_DIR

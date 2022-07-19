@@ -25,11 +25,11 @@ mv -v mpc-1.2.1 mpc
 mkdir build
 cd build
 
-../configure --prefix=$LOCATION/usr --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS --with-sysroot=$LOCATION 
+../configure --prefix=/usr --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS --with-sysroot=$LOCATION --disable-werror 
 
 make -j$JOBS
 
-sudo make PATH=$LOCATION/usr/bin:$PATH install
+sudo make PATH=$LOCATION/usr/bin:$PATH DESTDIR=$LOCATION install
 
 # Delete the old files
 cd $BUILD_DIR
