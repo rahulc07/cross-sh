@@ -7,12 +7,15 @@ This builds a linux cross toolchain from scratch for basically and architecture 
 # Setup 
 
 ## Dependencies
-GCC >=8
-Binutils 
-GNU Make
-GNU Sed
-wget
-Bash >=5.0
+GCC >=8  
+Binutils  
+GNU Make  
+GNU Sed  
+wget  
+Bash >=5.0  
+
+## Clone this repo
+git clone https://github.com/xXTeraXx/cross-sh
 
 
 ## Edit the toolchain.conf 
