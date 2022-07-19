@@ -5,7 +5,20 @@ This builds a linux cross toolchain from scratch for basically and architecture 
 
 
 # Setup 
+
+## Dependencies
+GCC >=8
+Binutils 
+GNU Make
+GNU Sed
+wget
+Bash >=5.0
+
+
 ## Edit the toolchain.conf 
+
+`nano toolchain.conf` or `vim toolchain.conf`
+
 Set the TARGET_CROSS var to your triplet(eg aarch64-linux-musl)
 Set the LIBC var to which one you want (Options between GLIBC, MUSL or newlib)
 Finally set the ARCH variable to the one you would need for the kernel compile
