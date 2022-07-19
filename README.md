@@ -22,6 +22,9 @@ Bash >=5.0
 
 `nano toolchain.conf` or `vim toolchain.conf`
 
+
+Note: For Some Reason you cannot use /usr/$TARGET_CROSS for the location variable, keep it in the opt directory and use a symlink, or otherwise you will get errors on the last stage of the compile
+
 Set the TARGET_CROSS var to your triplet(eg aarch64-linux-musl)
 Set the LIBC var to which one you want (Options between GLIBC, MUSL or newlib)
 Finally set the ARCH variable to the one you would need for the kernel compile
