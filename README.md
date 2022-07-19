@@ -5,7 +5,7 @@ This builds a linux cross toolchain from scratch for basically and architecture 
 
 
 # Setup 
-## Edit the toolchain.conf, 
+## Edit the toolchain.conf 
 Set the TARGET_CROSS var to your triplet(eg aarch64-linux-musl)
 Set the LIBC var to which one you want (Options between GLIBC, MUSL or newlib)
 Finally set the ARCH variable to the one you would need for the kernel compile
