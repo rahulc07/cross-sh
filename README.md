@@ -15,7 +15,7 @@ wget
 Bash >=5.0  
 
 ## Clone this repo
-git clone https://github.com/xXTeraXx/cross-sh
+`git clone https://github.com/xXTeraXx/cross-sh`
 
 
 ## Edit the toolchain.conf 
