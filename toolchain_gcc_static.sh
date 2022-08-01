@@ -26,7 +26,7 @@ cd build
 
 make all-gcc all-target-libgcc -j$JOBS
 
-sudo make PATH=$LOCATION/usr/bin:$PATH DESTDIR=$LOCATION install-gcc install-target-libgcc
+PATH=$LOCATION/usr/bin:$PATH make DESTDIR=$LOCATION install-gcc install-target-libgcc
 
 # Delete the old files
 cd $BUILD_DIR
