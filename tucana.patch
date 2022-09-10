@@ -1,6 +1,21 @@
+diff -Naur cross-sh/package.sh cross-sh-tucana/package.sh
+--- cross-sh/package.sh	1969-12-31 19:00:00.000000000 -0500
++++ cross-sh-tucana/package.sh	2022-09-10 13:45:44.260142495 -0400
+@@ -0,0 +1,11 @@
++#!/bin/bash
++source toolchain.conf
++mkdir -p /pkgs/$TARGET_CROSS/var/cache/mercury/meta-pkgs
++echo "$TARGET_CROSS-binutils $TARGET_CROSS-gcc $TARGET_CROSS-glibc $TARGET_CROSS-linux-api-headers" > /pkgs/$TARGET_CROSS/depend
++echo "$TARGET_CROSS-binutils $TARGET_CROSS-gcc $TARGET_CROSS-glibc $TARGET_CROSS-linux-api-headers" > /pkgs/$TARGET_CROSS/var/cache/mercury/meta-pkgs/aarch64-linux-gnu
++cd /pkgs
++tar -cvzpf $TARGET_CROSS-gcc.tar.xz $TARGET_CROSS-gcc
++tar -cvzpf $TARGET_CROSS-glibc.tar.xz $TARGET_CROSS-glibc
++tar -cvpzf $TARGET_CROSS-binutils.tar.xz $TARGET_CROSS-binutils
++tar -cvzpf $TARGET_CROSS-linux-api-headers.tar.xz $TARGET_CROSS-linux-api-headers
++mv $TARGET_CROSS*.tar.xz /finished
 diff -Naur cross-sh/toolchain_binutils.sh cross-sh-tucana/toolchain_binutils.sh
 --- cross-sh/toolchain_binutils.sh	2022-09-09 23:18:18.582469450 -0400
-+++ cross-sh-tucana/toolchain_binutils.sh	2022-09-09 22:10:42.179997269 -0400
++++ cross-sh-tucana/toolchain_binutils.sh	2022-09-09 23:23:11.419751716 -0400
 @@ -15,12 +15,12 @@
  mkdir build
  cd build
@@ -12,13 +27,13 @@ diff -Naur cross-sh/toolchain_binutils.sh cross-sh-tucana/toolchain_binutils.sh
  
  make DESTDIR=$LOCATION install
 -
-+make DESTDIR=/pkgs/$pkg/usr install
++make DESTDIR=/pkgs/$TARGET_CROSS-$pkg/usr install
  # Delete the old files
  cd $BUILD_DIR
  rm -rf $pkg-$LD_VER
 diff -Naur cross-sh/toolchain.conf cross-sh-tucana/toolchain.conf
 --- cross-sh/toolchain.conf	2022-09-09 23:18:18.582469450 -0400
-+++ cross-sh-tucana/toolchain.conf	2022-09-09 22:20:28.138827217 -0400
++++ cross-sh-tucana/toolchain.conf	2022-09-10 13:47:35.030891768 -0400
 @@ -1,32 +1,34 @@
  #!/bin/bash
  
@@ -69,19 +84,20 @@ diff -Naur cross-sh/toolchain.conf cross-sh-tucana/toolchain.conf
  # https://github.com/picolibc/picolibc
 diff -Naur cross-sh/toolchain_gcc_final.sh cross-sh-tucana/toolchain_gcc_final.sh
 --- cross-sh/toolchain_gcc_final.sh	2022-09-09 23:18:18.582469450 -0400
-+++ cross-sh-tucana/toolchain_gcc_final.sh	2022-09-09 23:10:14.525454544 -0400
-@@ -25,11 +25,12 @@
++++ cross-sh-tucana/toolchain_gcc_final.sh	2022-09-10 11:54:38.298717324 -0400
+@@ -25,11 +25,11 @@
  mkdir build
  cd build
  
 -../configure --prefix=/usr --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS --with-sysroot=$LOCATION --disable-werror 
-+../configure --prefix=/usr --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS --disable-werror --with-sysroot=/usr/$TARGET_CROSS --with-build-sysroot=/usr/$TARGET_CROSS --with-local-prefix=/usr/$TARGET_CROSS
++../configure --prefix=/usr --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS --disable-werror --with-sysroot=/usr/$TARGET_CROSS --with-build-sysroot=/usr/$TARGET_CROSS --with-local-prefix=/usr/$TARGET_CROSS --with-system-zlib
  
- make -j$JOBS
- 
+-make -j$JOBS
+-
 -sudo make PATH=$LOCATION/usr/bin:$PATH DESTDIR=$LOCATION install
++make STAGE1_CFLAGS='-Os' -j$(nproc)
 +make DESTDIR=$LOCATION install
-+make DESTDIR=/pkgs/$pkg install
++make DESTDIR=/pkgs/$TARGET_CROSS-$pkg install
  
  # Delete the old files
  cd $BUILD_DIR
@@ -99,7 +115,7 @@ diff -Naur cross-sh/toolchain_gcc_static.sh cross-sh-tucana/toolchain_gcc_static
  
 diff -Naur cross-sh/toolchain_glibc.sh cross-sh-tucana/toolchain_glibc.sh
 --- cross-sh/toolchain_glibc.sh	2022-09-09 23:18:18.582469450 -0400
-+++ cross-sh-tucana/toolchain_glibc.sh	2022-09-09 23:02:25.773835365 -0400
++++ cross-sh-tucana/toolchain_glibc.sh	2022-09-09 23:23:28.254998410 -0400
 @@ -15,12 +15,12 @@
  mkdir build
  cd build
@@ -112,7 +128,7 @@ diff -Naur cross-sh/toolchain_glibc.sh cross-sh-tucana/toolchain_glibc.sh
 -make DESTDIR=$LOCATION install
 -
 +make install_root=/usr/$TARGET_CROSS install
-+make install_root=/pkgs/$pkg/usr/$TARGET_CROSS install
++make install_root=/pkgs/$TARGET_CROSS-$pkg/usr/$TARGET_CROSS install
  # Delete the old files
  cd $BUILD_DIR
  rm -rf $pkg-$GLIBC_VER
