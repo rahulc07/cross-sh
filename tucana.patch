@@ -27,7 +27,7 @@ diff -Naur cross-sh/toolchain_binutils.sh cross-sh-tucana/toolchain_binutils.sh
  
  make DESTDIR=$LOCATION install
 -
-+make DESTDIR=/pkgs/$TARGET_CROSS-$pkg/usr install
++make DESTDIR=/pkgs/$TARGET_CROSS-$pkg install
  # Delete the old files
  cd $BUILD_DIR
  rm -rf $pkg-$LD_VER
