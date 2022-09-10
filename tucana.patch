@@ -6,7 +6,7 @@ diff -Naur cross-sh/package.sh cross-sh-tucana/package.sh
 +source toolchain.conf
 +mkdir -p /pkgs/$TARGET_CROSS/var/cache/mercury/meta-pkgs
 +echo "$TARGET_CROSS-binutils $TARGET_CROSS-gcc $TARGET_CROSS-glibc $TARGET_CROSS-linux-api-headers" > /pkgs/$TARGET_CROSS/depend
-+echo "$TARGET_CROSS-binutils $TARGET_CROSS-gcc $TARGET_CROSS-glibc $TARGET_CROSS-linux-api-headers" > /pkgs/$TARGET_CROSS/var/cache/mercury/meta-pkgs/aarch64-linux-gnu
++echo "$TARGET_CROSS-binutils $TARGET_CROSS-gcc $TARGET_CROSS-glibc $TARGET_CROSS-linux-api-headers" > /pkgs/$TARGET_CROSS/var/cache/mercury/meta-pkgs/$TARGET_CROSS
 +cd /pkgs
 +tar -cvzpf $TARGET_CROSS-gcc.tar.xz $TARGET_CROSS-gcc
 +tar -cvzpf $TARGET_CROSS-glibc.tar.xz $TARGET_CROSS-glibc
@@ -143,8 +143,8 @@ diff -Naur cross-sh/toolchain_linux_headers.sh cross-sh-tucana/toolchain_linux_h
 +mkdir -p $LOCATION/usr/$TARGET_CROSS/usr/include
 +cp -rpv usr/include/* $LOCATION/usr/$TARGET_CROSS/usr/include
  
-+mkdir -p /pkgs/aarch64-linux-gnu-linux-api-headers/usr/$TARGET_CROSS/usr/include
-+cp -rpv usr/include/* /pkgs/aarch64-linux-gnu-linux-api-headers/usr/$TARGET_CROSS/usr/include
++mkdir -p /pkgs/$TARGET_CROSS-linux-api-headers/usr/$TARGET_CROSS/usr/include
++cp -rpv usr/include/* /pkgs/$TARGET_CROSS-linux-api-headers/usr/$TARGET_CROSS/usr/include
  # Delete the old files
  cd $BUILD_DIR
  rm -rf $pkg-$KERNEL_VER
