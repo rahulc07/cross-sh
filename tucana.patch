@@ -1,1016 +1,3 @@
-diff -Naur cross-sh/.git/config cross-sh-tucana/.git/config
---- cross-sh/.git/config	2022-09-11 12:32:55.241638766 -0400
-+++ cross-sh-tucana/.git/config	1969-12-31 19:00:00.000000000 -0500
-@@ -1,11 +0,0 @@
--[core]
--	repositoryformatversion = 0
--	filemode = true
--	bare = false
--	logallrefupdates = true
--[remote "origin"]
--	url = https://github.com/xXTeraXx/cross-sh.git
--	fetch = +refs/heads/*:refs/remotes/origin/*
--[branch "main"]
--	remote = origin
--	merge = refs/heads/main
-diff -Naur cross-sh/.git/description cross-sh-tucana/.git/description
---- cross-sh/.git/description	2022-09-11 12:32:54.968634143 -0400
-+++ cross-sh-tucana/.git/description	1969-12-31 19:00:00.000000000 -0500
-@@ -1 +0,0 @@
--Unnamed repository; edit this file 'description' to name the repository.
-diff -Naur cross-sh/.git/HEAD cross-sh-tucana/.git/HEAD
---- cross-sh/.git/HEAD	2022-09-11 12:32:55.240638749 -0400
-+++ cross-sh-tucana/.git/HEAD	1969-12-31 19:00:00.000000000 -0500
-@@ -1 +0,0 @@
--ref: refs/heads/main
-diff -Naur cross-sh/.git/hooks/applypatch-msg.sample cross-sh-tucana/.git/hooks/applypatch-msg.sample
---- cross-sh/.git/hooks/applypatch-msg.sample	2022-09-11 12:32:54.968634143 -0400
-+++ cross-sh-tucana/.git/hooks/applypatch-msg.sample	1969-12-31 19:00:00.000000000 -0500
-@@ -1,15 +0,0 @@
--#!/bin/sh
--#
--# An example hook script to check the commit log message taken by
--# applypatch from an e-mail message.
--#
--# The hook should exit with non-zero status after issuing an
--# appropriate message if it wants to stop the commit.  The hook is
--# allowed to edit the commit message file.
--#
--# To enable this hook, rename this file to "applypatch-msg".
--
--. git-sh-setup
--commitmsg="$(git rev-parse --git-path hooks/commit-msg)"
--test -x "$commitmsg" && exec "$commitmsg" ${1+"$@"}
--:
-diff -Naur cross-sh/.git/hooks/commit-msg.sample cross-sh-tucana/.git/hooks/commit-msg.sample
---- cross-sh/.git/hooks/commit-msg.sample	2022-09-11 12:32:54.968634143 -0400
-+++ cross-sh-tucana/.git/hooks/commit-msg.sample	1969-12-31 19:00:00.000000000 -0500
-@@ -1,24 +0,0 @@
--#!/bin/sh
--#
--# An example hook script to check the commit log message.
--# Called by "git commit" with one argument, the name of the file
--# that has the commit message.  The hook should exit with non-zero
--# status after issuing an appropriate message if it wants to stop the
--# commit.  The hook is allowed to edit the commit message file.
--#
--# To enable this hook, rename this file to "commit-msg".
--
--# Uncomment the below to add a Signed-off-by line to the message.
--# Doing this in a hook is a bad idea in general, but the prepare-commit-msg
--# hook is more suited to it.
--#
--# SOB=$(git var GIT_AUTHOR_IDENT | sed -n 's/^\(.*>\).*$/Signed-off-by: \1/p')
--# grep -qs "^$SOB" "$1" || echo "$SOB" >> "$1"
--
--# This example catches duplicate Signed-off-by lines.
--
--test "" = "$(grep '^Signed-off-by: ' "$1" |
--	 sort | uniq -c | sed -e '/^[ 	]*1[ 	]/d')" || {
--	echo >&2 Duplicate Signed-off-by lines.
--	exit 1
--}
-diff -Naur cross-sh/.git/hooks/fsmonitor-watchman.sample cross-sh-tucana/.git/hooks/fsmonitor-watchman.sample
---- cross-sh/.git/hooks/fsmonitor-watchman.sample	2022-09-11 12:32:54.968634143 -0400
-+++ cross-sh-tucana/.git/hooks/fsmonitor-watchman.sample	1969-12-31 19:00:00.000000000 -0500
-@@ -1,173 +0,0 @@
--#!/usr/bin/perl
--
--use strict;
--use warnings;
--use IPC::Open2;
--
--# An example hook script to integrate Watchman
--# (https://facebook.github.io/watchman/) with git to speed up detecting
--# new and modified files.
--#
--# The hook is passed a version (currently 2) and last update token
--# formatted as a string and outputs to stdout a new update token and
--# all files that have been modified since the update token. Paths must
--# be relative to the root of the working tree and separated by a single NUL.
--#
--# To enable this hook, rename this file to "query-watchman" and set
--# 'git config core.fsmonitor .git/hooks/query-watchman'
--#
--my ($version, $last_update_token) = @ARGV;
--
--# Uncomment for debugging
--# print STDERR "$0 $version $last_update_token\n";
--
--# Check the hook interface version
--if ($version ne 2) {
--	die "Unsupported query-fsmonitor hook version '$version'.\n" .
--	    "Falling back to scanning...\n";
--}
--
--my $git_work_tree = get_working_dir();
--
--my $retry = 1;
--
--my $json_pkg;
--eval {
--	require JSON::XS;
--	$json_pkg = "JSON::XS";
--	1;
--} or do {
--	require JSON::PP;
--	$json_pkg = "JSON::PP";
--};
--
--launch_watchman();
--
--sub launch_watchman {
--	my $o = watchman_query();
--	if (is_work_tree_watched($o)) {
--		output_result($o->{clock}, @{$o->{files}});
--	}
--}
--
--sub output_result {
--	my ($clockid, @files) = @_;
--
--	# Uncomment for debugging watchman output
--	# open (my $fh, ">", ".git/watchman-output.out");
--	# binmode $fh, ":utf8";
--	# print $fh "$clockid\n@files\n";
--	# close $fh;
--
--	binmode STDOUT, ":utf8";
--	print $clockid;
--	print "\0";
--	local $, = "\0";
--	print @files;
--}
--
--sub watchman_clock {
--	my $response = qx/watchman clock "$git_work_tree"/;
--	die "Failed to get clock id on '$git_work_tree'.\n" .
--		"Falling back to scanning...\n" if $? != 0;
--
--	return $json_pkg->new->utf8->decode($response);
--}
--
--sub watchman_query {
--	my $pid = open2(\*CHLD_OUT, \*CHLD_IN, 'watchman -j --no-pretty')
--	or die "open2() failed: $!\n" .
--	"Falling back to scanning...\n";
--
--	# In the query expression below we're asking for names of files that
--	# changed since $last_update_token but not from the .git folder.
--	#
--	# To accomplish this, we're using the "since" generator to use the
--	# recency index to select candidate nodes and "fields" to limit the
--	# output to file names only. Then we're using the "expression" term to
--	# further constrain the results.
--	if (substr($last_update_token, 0, 1) eq "c") {
--		$last_update_token = "\"$last_update_token\"";
--	}
--	my $query = <<"	END";
--		["query", "$git_work_tree", {
--			"since": $last_update_token,
--			"fields": ["name"],
--			"expression": ["not", ["dirname", ".git"]]
--		}]
--	END
--
--	# Uncomment for debugging the watchman query
--	# open (my $fh, ">", ".git/watchman-query.json");
--	# print $fh $query;
--	# close $fh;
--
--	print CHLD_IN $query;
--	close CHLD_IN;
--	my $response = do {local $/; <CHLD_OUT>};
--
--	# Uncomment for debugging the watch response
--	# open ($fh, ">", ".git/watchman-response.json");
--	# print $fh $response;
--	# close $fh;
--
--	die "Watchman: command returned no output.\n" .
--	"Falling back to scanning...\n" if $response eq "";
--	die "Watchman: command returned invalid output: $response\n" .
--	"Falling back to scanning...\n" unless $response =~ /^\{/;
--
--	return $json_pkg->new->utf8->decode($response);
--}
--
--sub is_work_tree_watched {
--	my ($output) = @_;
--	my $error = $output->{error};
--	if ($retry > 0 and $error and $error =~ m/unable to resolve root .* directory (.*) is not watched/) {
--		$retry--;
--		my $response = qx/watchman watch "$git_work_tree"/;
--		die "Failed to make watchman watch '$git_work_tree'.\n" .
--		    "Falling back to scanning...\n" if $? != 0;
--		$output = $json_pkg->new->utf8->decode($response);
--		$error = $output->{error};
--		die "Watchman: $error.\n" .
--		"Falling back to scanning...\n" if $error;
--
--		# Uncomment for debugging watchman output
--		# open (my $fh, ">", ".git/watchman-output.out");
--		# close $fh;
--
--		# Watchman will always return all files on the first query so
--		# return the fast "everything is dirty" flag to git and do the
--		# Watchman query just to get it over with now so we won't pay
--		# the cost in git to look up each individual file.
--		my $o = watchman_clock();
--		$error = $output->{error};
--
--		die "Watchman: $error.\n" .
--		"Falling back to scanning...\n" if $error;
--
--		output_result($o->{clock}, ("/"));
--		$last_update_token = $o->{clock};
--
--		eval { launch_watchman() };
--		return 0;
--	}
--
--	die "Watchman: $error.\n" .
--	"Falling back to scanning...\n" if $error;
--
--	return 1;
--}
--
--sub get_working_dir {
--	my $working_dir;
--	if ($^O =~ 'msys' || $^O =~ 'cygwin') {
--		$working_dir = Win32::GetCwd();
--		$working_dir =~ tr/\\/\//;
--	} else {
--		require Cwd;
--		$working_dir = Cwd::cwd();
--	}
--
--	return $working_dir;
--}
-diff -Naur cross-sh/.git/hooks/post-update.sample cross-sh-tucana/.git/hooks/post-update.sample
---- cross-sh/.git/hooks/post-update.sample	2022-09-11 12:32:54.968634143 -0400
-+++ cross-sh-tucana/.git/hooks/post-update.sample	1969-12-31 19:00:00.000000000 -0500
-@@ -1,8 +0,0 @@
--#!/bin/sh
--#
--# An example hook script to prepare a packed repository for use over
--# dumb transports.
--#
--# To enable this hook, rename this file to "post-update".
--
--exec git update-server-info
-diff -Naur cross-sh/.git/hooks/pre-applypatch.sample cross-sh-tucana/.git/hooks/pre-applypatch.sample
---- cross-sh/.git/hooks/pre-applypatch.sample	2022-09-11 12:32:54.968634143 -0400
-+++ cross-sh-tucana/.git/hooks/pre-applypatch.sample	1969-12-31 19:00:00.000000000 -0500
-@@ -1,14 +0,0 @@
--#!/bin/sh
--#
--# An example hook script to verify what is about to be committed
--# by applypatch from an e-mail message.
--#
--# The hook should exit with non-zero status after issuing an
--# appropriate message if it wants to stop the commit.
--#
--# To enable this hook, rename this file to "pre-applypatch".
--
--. git-sh-setup
--precommit="$(git rev-parse --git-path hooks/pre-commit)"
--test -x "$precommit" && exec "$precommit" ${1+"$@"}
--:
-diff -Naur cross-sh/.git/hooks/pre-commit.sample cross-sh-tucana/.git/hooks/pre-commit.sample
---- cross-sh/.git/hooks/pre-commit.sample	2022-09-11 12:32:54.968634143 -0400
-+++ cross-sh-tucana/.git/hooks/pre-commit.sample	1969-12-31 19:00:00.000000000 -0500
-@@ -1,49 +0,0 @@
--#!/bin/sh
--#
--# An example hook script to verify what is about to be committed.
--# Called by "git commit" with no arguments.  The hook should
--# exit with non-zero status after issuing an appropriate message if
--# it wants to stop the commit.
--#
--# To enable this hook, rename this file to "pre-commit".
--
--if git rev-parse --verify HEAD >/dev/null 2>&1
--then
--	against=HEAD
--else
--	# Initial commit: diff against an empty tree object
--	against=$(git hash-object -t tree /dev/null)
--fi
--
--# If you want to allow non-ASCII filenames set this variable to true.
--allownonascii=$(git config --type=bool hooks.allownonascii)
--
--# Redirect output to stderr.
--exec 1>&2
--
--# Cross platform projects tend to avoid non-ASCII filenames; prevent
--# them from being added to the repository. We exploit the fact that the
--# printable range starts at the space character and ends with tilde.
--if [ "$allownonascii" != "true" ] &&
--	# Note that the use of brackets around a tr range is ok here, (it's
--	# even required, for portability to Solaris 10's /usr/bin/tr), since
--	# the square bracket bytes happen to fall in the designated range.
--	test $(git diff --cached --name-only --diff-filter=A -z $against |
--	  LC_ALL=C tr -d '[ -~]\0' | wc -c) != 0
--then
--	cat <<\EOF
--Error: Attempt to add a non-ASCII file name.
--
--This can cause problems if you want to work with people on other platforms.
--
--To be portable it is advisable to rename the file.
--
--If you know what you are doing you can disable this check using:
--
--  git config hooks.allownonascii true
--EOF
--	exit 1
--fi
--
--# If there are whitespace errors, print the offending file names and fail.
--exec git diff-index --check --cached $against --
-diff -Naur cross-sh/.git/hooks/pre-merge-commit.sample cross-sh-tucana/.git/hooks/pre-merge-commit.sample
---- cross-sh/.git/hooks/pre-merge-commit.sample	2022-09-11 12:32:54.968634143 -0400
-+++ cross-sh-tucana/.git/hooks/pre-merge-commit.sample	1969-12-31 19:00:00.000000000 -0500
-@@ -1,13 +0,0 @@
--#!/bin/sh
--#
--# An example hook script to verify what is about to be committed.
--# Called by "git merge" with no arguments.  The hook should
--# exit with non-zero status after issuing an appropriate message to
--# stderr if it wants to stop the merge commit.
--#
--# To enable this hook, rename this file to "pre-merge-commit".
--
--. git-sh-setup
--test -x "$GIT_DIR/hooks/pre-commit" &&
--        exec "$GIT_DIR/hooks/pre-commit"
--:
-diff -Naur cross-sh/.git/hooks/prepare-commit-msg.sample cross-sh-tucana/.git/hooks/prepare-commit-msg.sample
---- cross-sh/.git/hooks/prepare-commit-msg.sample	2022-09-11 12:32:54.968634143 -0400
-+++ cross-sh-tucana/.git/hooks/prepare-commit-msg.sample	1969-12-31 19:00:00.000000000 -0500
-@@ -1,42 +0,0 @@
--#!/bin/sh
--#
--# An example hook script to prepare the commit log message.
--# Called by "git commit" with the name of the file that has the
--# commit message, followed by the description of the commit
--# message's source.  The hook's purpose is to edit the commit
--# message file.  If the hook fails with a non-zero status,
--# the commit is aborted.
--#
--# To enable this hook, rename this file to "prepare-commit-msg".
--
--# This hook includes three examples. The first one removes the
--# "# Please enter the commit message..." help message.
--#
--# The second includes the output of "git diff --name-status -r"
--# into the message, just before the "git status" output.  It is
--# commented because it doesn't cope with --amend or with squashed
--# commits.
--#
--# The third example adds a Signed-off-by line to the message, that can
--# still be edited.  This is rarely a good idea.
--
--COMMIT_MSG_FILE=$1
--COMMIT_SOURCE=$2
--SHA1=$3
--
--/usr/bin/perl -i.bak -ne 'print unless(m/^. Please enter the commit message/..m/^#$/)' "$COMMIT_MSG_FILE"
--
--# case "$COMMIT_SOURCE,$SHA1" in
--#  ,|template,)
--#    /usr/bin/perl -i.bak -pe '
--#       print "\n" . `git diff --cached --name-status -r`
--# 	 if /^#/ && $first++ == 0' "$COMMIT_MSG_FILE" ;;
--#  *) ;;
--# esac
--
--# SOB=$(git var GIT_COMMITTER_IDENT | sed -n 's/^\(.*>\).*$/Signed-off-by: \1/p')
--# git interpret-trailers --in-place --trailer "$SOB" "$COMMIT_MSG_FILE"
--# if test -z "$COMMIT_SOURCE"
--# then
--#   /usr/bin/perl -i.bak -pe 'print "\n" if !$first_line++' "$COMMIT_MSG_FILE"
--# fi
-diff -Naur cross-sh/.git/hooks/pre-push.sample cross-sh-tucana/.git/hooks/pre-push.sample
---- cross-sh/.git/hooks/pre-push.sample	2022-09-11 12:32:54.968634143 -0400
-+++ cross-sh-tucana/.git/hooks/pre-push.sample	1969-12-31 19:00:00.000000000 -0500
-@@ -1,53 +0,0 @@
--#!/bin/sh
--
--# An example hook script to verify what is about to be pushed.  Called by "git
--# push" after it has checked the remote status, but before anything has been
--# pushed.  If this script exits with a non-zero status nothing will be pushed.
--#
--# This hook is called with the following parameters:
--#
--# $1 -- Name of the remote to which the push is being done
--# $2 -- URL to which the push is being done
--#
--# If pushing without using a named remote those arguments will be equal.
--#
--# Information about the commits which are being pushed is supplied as lines to
--# the standard input in the form:
--#
--#   <local ref> <local oid> <remote ref> <remote oid>
--#
--# This sample shows how to prevent push of commits where the log message starts
--# with "WIP" (work in progress).
--
--remote="$1"
--url="$2"
--
--zero=$(git hash-object --stdin </dev/null | tr '[0-9a-f]' '0')
--
--while read local_ref local_oid remote_ref remote_oid
--do
--	if test "$local_oid" = "$zero"
--	then
--		# Handle delete
--		:
--	else
--		if test "$remote_oid" = "$zero"
--		then
--			# New branch, examine all commits
--			range="$local_oid"
--		else
--			# Update to existing branch, examine new commits
--			range="$remote_oid..$local_oid"
--		fi
--
--		# Check for WIP commit
--		commit=$(git rev-list -n 1 --grep '^WIP' "$range")
--		if test -n "$commit"
--		then
--			echo >&2 "Found WIP commit in $local_ref, not pushing"
--			exit 1
--		fi
--	fi
--done
--
--exit 0
-diff -Naur cross-sh/.git/hooks/pre-rebase.sample cross-sh-tucana/.git/hooks/pre-rebase.sample
---- cross-sh/.git/hooks/pre-rebase.sample	2022-09-11 12:32:54.968634143 -0400
-+++ cross-sh-tucana/.git/hooks/pre-rebase.sample	1969-12-31 19:00:00.000000000 -0500
-@@ -1,169 +0,0 @@
--#!/bin/sh
--#
--# Copyright (c) 2006, 2008 Junio C Hamano
--#
--# The "pre-rebase" hook is run just before "git rebase" starts doing
--# its job, and can prevent the command from running by exiting with
--# non-zero status.
--#
--# The hook is called with the following parameters:
--#
--# $1 -- the upstream the series was forked from.
--# $2 -- the branch being rebased (or empty when rebasing the current branch).
--#
--# This sample shows how to prevent topic branches that are already
--# merged to 'next' branch from getting rebased, because allowing it
--# would result in rebasing already published history.
--
--publish=next
--basebranch="$1"
--if test "$#" = 2
--then
--	topic="refs/heads/$2"
--else
--	topic=`git symbolic-ref HEAD` ||
--	exit 0 ;# we do not interrupt rebasing detached HEAD
--fi
--
--case "$topic" in
--refs/heads/??/*)
--	;;
--*)
--	exit 0 ;# we do not interrupt others.
--	;;
--esac
--
--# Now we are dealing with a topic branch being rebased
--# on top of master.  Is it OK to rebase it?
--
--# Does the topic really exist?
--git show-ref -q "$topic" || {
--	echo >&2 "No such branch $topic"
--	exit 1
--}
--
--# Is topic fully merged to master?
--not_in_master=`git rev-list --pretty=oneline ^master "$topic"`
--if test -z "$not_in_master"
--then
--	echo >&2 "$topic is fully merged to master; better remove it."
--	exit 1 ;# we could allow it, but there is no point.
--fi
--
--# Is topic ever merged to next?  If so you should not be rebasing it.
--only_next_1=`git rev-list ^master "^$topic" ${publish} | sort`
--only_next_2=`git rev-list ^master           ${publish} | sort`
--if test "$only_next_1" = "$only_next_2"
--then
--	not_in_topic=`git rev-list "^$topic" master`
--	if test -z "$not_in_topic"
--	then
--		echo >&2 "$topic is already up to date with master"
--		exit 1 ;# we could allow it, but there is no point.
--	else
--		exit 0
--	fi
--else
--	not_in_next=`git rev-list --pretty=oneline ^${publish} "$topic"`
--	/usr/bin/perl -e '
--		my $topic = $ARGV[0];
--		my $msg = "* $topic has commits already merged to public branch:\n";
--		my (%not_in_next) = map {
--			/^([0-9a-f]+) /;
--			($1 => 1);
--		} split(/\n/, $ARGV[1]);
--		for my $elem (map {
--				/^([0-9a-f]+) (.*)$/;
--				[$1 => $2];
--			} split(/\n/, $ARGV[2])) {
--			if (!exists $not_in_next{$elem->[0]}) {
--				if ($msg) {
--					print STDERR $msg;
--					undef $msg;
--				}
--				print STDERR " $elem->[1]\n";
--			}
--		}
--	' "$topic" "$not_in_next" "$not_in_master"
--	exit 1
--fi
--
--<<\DOC_END
--
--This sample hook safeguards topic branches that have been
--published from being rewound.
--
--The workflow assumed here is:
--
-- * Once a topic branch forks from "master", "master" is never
--   merged into it again (either directly or indirectly).
--
-- * Once a topic branch is fully cooked and merged into "master",
--   it is deleted.  If you need to build on top of it to correct
--   earlier mistakes, a new topic branch is created by forking at
--   the tip of the "master".  This is not strictly necessary, but
--   it makes it easier to keep your history simple.
--
-- * Whenever you need to test or publish your changes to topic
--   branches, merge them into "next" branch.
--
--The script, being an example, hardcodes the publish branch name
--to be "next", but it is trivial to make it configurable via
--$GIT_DIR/config mechanism.
--
--With this workflow, you would want to know:
--
--(1) ... if a topic branch has ever been merged to "next".  Young
--    topic branches can have stupid mistakes you would rather
--    clean up before publishing, and things that have not been
--    merged into other branches can be easily rebased without
--    affecting other people.  But once it is published, you would
--    not want to rewind it.
--
--(2) ... if a topic branch has been fully merged to "master".
--    Then you can delete it.  More importantly, you should not
--    build on top of it -- other people may already want to
--    change things related to the topic as patches against your
--    "master", so if you need further changes, it is better to
--    fork the topic (perhaps with the same name) afresh from the
--    tip of "master".
--
--Let's look at this example:
--
--		   o---o---o---o---o---o---o---o---o---o "next"
--		  /       /           /           /
--		 /   a---a---b A     /           /
--		/   /               /           /
--	       /   /   c---c---c---c B         /
--	      /   /   /             \         /
--	     /   /   /   b---b C     \       /
--	    /   /   /   /             \     /
--    ---o---o---o---o---o---o---o---o---o---o---o "master"
--
--
--A, B and C are topic branches.
--
-- * A has one fix since it was merged up to "next".
--
-- * B has finished.  It has been fully merged up to "master" and "next",
--   and is ready to be deleted.
--
-- * C has not merged to "next" at all.
--
--We would want to allow C to be rebased, refuse A, and encourage
--B to be deleted.
--
--To compute (1):
--
--	git rev-list ^master ^topic next
--	git rev-list ^master        next
--
--	if these match, topic has not merged in next at all.
--
--To compute (2):
--
--	git rev-list master..topic
--
--	if this is empty, it is fully merged to "master".
--
--DOC_END
-diff -Naur cross-sh/.git/hooks/pre-receive.sample cross-sh-tucana/.git/hooks/pre-receive.sample
---- cross-sh/.git/hooks/pre-receive.sample	2022-09-11 12:32:54.968634143 -0400
-+++ cross-sh-tucana/.git/hooks/pre-receive.sample	1969-12-31 19:00:00.000000000 -0500
-@@ -1,24 +0,0 @@
--#!/bin/sh
--#
--# An example hook script to make use of push options.
--# The example simply echoes all push options that start with 'echoback='
--# and rejects all pushes when the "reject" push option is used.
--#
--# To enable this hook, rename this file to "pre-receive".
--
--if test -n "$GIT_PUSH_OPTION_COUNT"
--then
--	i=0
--	while test "$i" -lt "$GIT_PUSH_OPTION_COUNT"
--	do
--		eval "value=\$GIT_PUSH_OPTION_$i"
--		case "$value" in
--		echoback=*)
--			echo "echo from the pre-receive-hook: ${value#*=}" >&2
--			;;
--		reject)
--			exit 1
--		esac
--		i=$((i + 1))
--	done
--fi
-diff -Naur cross-sh/.git/hooks/push-to-checkout.sample cross-sh-tucana/.git/hooks/push-to-checkout.sample
---- cross-sh/.git/hooks/push-to-checkout.sample	2022-09-11 12:32:54.968634143 -0400
-+++ cross-sh-tucana/.git/hooks/push-to-checkout.sample	1969-12-31 19:00:00.000000000 -0500
-@@ -1,78 +0,0 @@
--#!/bin/sh
--
--# An example hook script to update a checked-out tree on a git push.
--#
--# This hook is invoked by git-receive-pack(1) when it reacts to git
--# push and updates reference(s) in its repository, and when the push
--# tries to update the branch that is currently checked out and the
--# receive.denyCurrentBranch configuration variable is set to
--# updateInstead.
--#
--# By default, such a push is refused if the working tree and the index
--# of the remote repository has any difference from the currently
--# checked out commit; when both the working tree and the index match
--# the current commit, they are updated to match the newly pushed tip
--# of the branch. This hook is to be used to override the default
--# behaviour; however the code below reimplements the default behaviour
--# as a starting point for convenient modification.
--#
--# The hook receives the commit with which the tip of the current
--# branch is going to be updated:
--commit=$1
--
--# It can exit with a non-zero status to refuse the push (when it does
--# so, it must not modify the index or the working tree).
--die () {
--	echo >&2 "$*"
--	exit 1
--}
--
--# Or it can make any necessary changes to the working tree and to the
--# index to bring them to the desired state when the tip of the current
--# branch is updated to the new commit, and exit with a zero status.
--#
--# For example, the hook can simply run git read-tree -u -m HEAD "$1"
--# in order to emulate git fetch that is run in the reverse direction
--# with git push, as the two-tree form of git read-tree -u -m is
--# essentially the same as git switch or git checkout that switches
--# branches while keeping the local changes in the working tree that do
--# not interfere with the difference between the branches.
--
--# The below is a more-or-less exact translation to shell of the C code
--# for the default behaviour for git's push-to-checkout hook defined in
--# the push_to_deploy() function in builtin/receive-pack.c.
--#
--# Note that the hook will be executed from the repository directory,
--# not from the working tree, so if you want to perform operations on
--# the working tree, you will have to adapt your code accordingly, e.g.
--# by adding "cd .." or using relative paths.
--
--if ! git update-index -q --ignore-submodules --refresh
--then
--	die "Up-to-date check failed"
--fi
--
--if ! git diff-files --quiet --ignore-submodules --
--then
--	die "Working directory has unstaged changes"
--fi
--
--# This is a rough translation of:
--#
--#   head_has_history() ? "HEAD" : EMPTY_TREE_SHA1_HEX
--if git cat-file -e HEAD 2>/dev/null
--then
--	head=HEAD
--else
--	head=$(git hash-object -t tree --stdin </dev/null)
--fi
--
--if ! git diff-index --quiet --cached --ignore-submodules $head --
--then
--	die "Working directory has staged changes"
--fi
--
--if ! git read-tree -u -m "$commit"
--then
--	die "Could not update working tree to new HEAD"
--fi
-diff -Naur cross-sh/.git/hooks/update.sample cross-sh-tucana/.git/hooks/update.sample
---- cross-sh/.git/hooks/update.sample	2022-09-11 12:32:54.968634143 -0400
-+++ cross-sh-tucana/.git/hooks/update.sample	1969-12-31 19:00:00.000000000 -0500
-@@ -1,128 +0,0 @@
--#!/bin/sh
--#
--# An example hook script to block unannotated tags from entering.
--# Called by "git receive-pack" with arguments: refname sha1-old sha1-new
--#
--# To enable this hook, rename this file to "update".
--#
--# Config
--# ------
--# hooks.allowunannotated
--#   This boolean sets whether unannotated tags will be allowed into the
--#   repository.  By default they won't be.
--# hooks.allowdeletetag
--#   This boolean sets whether deleting tags will be allowed in the
--#   repository.  By default they won't be.
--# hooks.allowmodifytag
--#   This boolean sets whether a tag may be modified after creation. By default
--#   it won't be.
--# hooks.allowdeletebranch
--#   This boolean sets whether deleting branches will be allowed in the
--#   repository.  By default they won't be.
--# hooks.denycreatebranch
--#   This boolean sets whether remotely creating branches will be denied
--#   in the repository.  By default this is allowed.
--#
--
--# --- Command line
--refname="$1"
--oldrev="$2"
--newrev="$3"
--
--# --- Safety check
--if [ -z "$GIT_DIR" ]; then
--	echo "Don't run this script from the command line." >&2
--	echo " (if you want, you could supply GIT_DIR then run" >&2
--	echo "  $0 <ref> <oldrev> <newrev>)" >&2
--	exit 1
--fi
--
--if [ -z "$refname" -o -z "$oldrev" -o -z "$newrev" ]; then
--	echo "usage: $0 <ref> <oldrev> <newrev>" >&2
--	exit 1
--fi
--
--# --- Config
--allowunannotated=$(git config --type=bool hooks.allowunannotated)
--allowdeletebranch=$(git config --type=bool hooks.allowdeletebranch)
--denycreatebranch=$(git config --type=bool hooks.denycreatebranch)
--allowdeletetag=$(git config --type=bool hooks.allowdeletetag)
--allowmodifytag=$(git config --type=bool hooks.allowmodifytag)
--
--# check for no description
--projectdesc=$(sed -e '1q' "$GIT_DIR/description")
--case "$projectdesc" in
--"Unnamed repository"* | "")
--	echo "*** Project description file hasn't been set" >&2
--	exit 1
--	;;
--esac
--
--# --- Check types
--# if $newrev is 0000...0000, it's a commit to delete a ref.
--zero=$(git hash-object --stdin </dev/null | tr '[0-9a-f]' '0')
--if [ "$newrev" = "$zero" ]; then
--	newrev_type=delete
--else
--	newrev_type=$(git cat-file -t $newrev)
--fi
--
--case "$refname","$newrev_type" in
--	refs/tags/*,commit)
--		# un-annotated tag
--		short_refname=${refname##refs/tags/}
--		if [ "$allowunannotated" != "true" ]; then
--			echo "*** The un-annotated tag, $short_refname, is not allowed in this repository" >&2
--			echo "*** Use 'git tag [ -a | -s ]' for tags you want to propagate." >&2
--			exit 1
--		fi
--		;;
--	refs/tags/*,delete)
--		# delete tag
--		if [ "$allowdeletetag" != "true" ]; then
--			echo "*** Deleting a tag is not allowed in this repository" >&2
--			exit 1
--		fi
--		;;
--	refs/tags/*,tag)
--		# annotated tag
--		if [ "$allowmodifytag" != "true" ] && git rev-parse $refname > /dev/null 2>&1
--		then
--			echo "*** Tag '$refname' already exists." >&2
--			echo "*** Modifying a tag is not allowed in this repository." >&2
--			exit 1
--		fi
--		;;
--	refs/heads/*,commit)
--		# branch
--		if [ "$oldrev" = "$zero" -a "$denycreatebranch" = "true" ]; then
--			echo "*** Creating a branch is not allowed in this repository" >&2
--			exit 1
--		fi
--		;;
--	refs/heads/*,delete)
--		# delete branch
--		if [ "$allowdeletebranch" != "true" ]; then
--			echo "*** Deleting a branch is not allowed in this repository" >&2
--			exit 1
--		fi
--		;;
--	refs/remotes/*,commit)
--		# tracking branch
--		;;
--	refs/remotes/*,delete)
--		# delete tracking branch
--		if [ "$allowdeletebranch" != "true" ]; then
--			echo "*** Deleting a tracking branch is not allowed in this repository" >&2
--			exit 1
--		fi
--		;;
--	*)
--		# Anything else (is there anything else?)
--		echo "*** Update hook: unknown type of update to ref $refname of type $newrev_type" >&2
--		exit 1
--		;;
--esac
--
--# --- Finished
--exit 0
-diff -Naur cross-sh/.git/index cross-sh-tucana/.git/index
---- cross-sh/.git/index	2022-09-11 12:32:55.241638766 -0400
-+++ cross-sh-tucana/.git/index	1969-12-31 19:00:00.000000000 -0500
-@@ -1,3 +0,0 @@
--DIRC      c·gnc·gn  &s  ¤          ÏûVS²üéüi£îŸ÷”pÆ 	README.md c·gnc·gn  &|  ¤          vÒ“1;¢¯Æ®+<§µï}CkÄó” build_toolchain.sh        c·gnc·gn  &}  ¤          ÊË^¾;¦‡ÒyaNE)¡Š.VºN setup.sh  c·gnc·gn  &~  ¤          Ã¢›\éíN}ëYrÚQ±‡áP¯ toolchain.conf    c·gnc·gn  &  ¤          Ÿ¿ñéQO¯ÑCÊÉÂbq¸käŞBé toolchain_binutils.sh     c·gnc·gn  &€  ¤           h´ŠàË^M=—¯hFı‘Óåá toolchain_gcc_final.sh    c·gnc·gn  &  ¤          Ô±KC/	N-0ÊJ< ájš„¹« toolchain_gcc_static.sh   c·gnc·gn  &‚  ¤          ]‡„*ƒİ¥	2!¨	@Ù­™Ú	 toolchain_glibc.sh        c·gnc·gn  &…  ¤          >@ò0Æ¯<‰F>-P‚>ãŞ toolchain_linux_headers.sh        c·gnc·gn  &‹  ¤          hîĞb–Ö‘Òòò­éæ;ÀD¶]æ toolchain_musl.sh c·gnc·gn  &Œ  ¤          ZÁ%ä•£ˆøï*2œã3¬ùrAæñ toolchain_newlib.sh       c·gnc·gn  &  ¤          €Y-‘Úõ„‚ˆËx±û	“oø¡ toolchain_picolibc.sh     c·gnc·gn  &  ¤          #s¾4sh.¤@Vn±"ñi¿»íÅ6 tucana-mingw.patch        c·gnc·gn  &  ¤          !˜Õ0z8ª9©ï„U…mnğoÇ tucana.patch      c·gnc·gn  &  ¤          +¾x™wD~¢œàèZŸã•V01 wget      TREE    15 0
--6pŸ¯ŠÑ©Šh,+Sx¾ù¡ÃÌ
--#Mç n“	7¡óı~°‰ÉSèÖl
-\ No newline at end of file
-diff -Naur cross-sh/.git/info/exclude cross-sh-tucana/.git/info/exclude
---- cross-sh/.git/info/exclude	2022-09-11 12:32:54.968634143 -0400
-+++ cross-sh-tucana/.git/info/exclude	1969-12-31 19:00:00.000000000 -0500
-@@ -1,6 +0,0 @@
--# git ls-files --others --exclude-from=.git/info/exclude
--# Lines that start with '#' are comments.
--# For a project mostly in C, the following would be a good set of
--# exclude patterns (uncomment them if you want to use them):
--# *.[oa]
--# *~
-diff -Naur cross-sh/.git/logs/HEAD cross-sh-tucana/.git/logs/HEAD
---- cross-sh/.git/logs/HEAD	2022-09-11 12:32:55.240638749 -0400
-+++ cross-sh-tucana/.git/logs/HEAD	1969-12-31 19:00:00.000000000 -0500
-@@ -1 +0,0 @@
--0000000000000000000000000000000000000000 a6bed5ed84d13bad88ad173bd340926ee1152779 root <root@the-valkyrien-leopard.(none)> 1662913975 -0400	clone: from https://github.com/xXTeraXx/cross-sh.git
-diff -Naur cross-sh/.git/logs/refs/heads/main cross-sh-tucana/.git/logs/refs/heads/main
---- cross-sh/.git/logs/refs/heads/main	2022-09-11 12:32:55.241638766 -0400
-+++ cross-sh-tucana/.git/logs/refs/heads/main	1969-12-31 19:00:00.000000000 -0500
-@@ -1 +0,0 @@
--0000000000000000000000000000000000000000 a6bed5ed84d13bad88ad173bd340926ee1152779 root <root@the-valkyrien-leopard.(none)> 1662913975 -0400	clone: from https://github.com/xXTeraXx/cross-sh.git
-diff -Naur cross-sh/.git/logs/refs/remotes/origin/HEAD cross-sh-tucana/.git/logs/refs/remotes/origin/HEAD
---- cross-sh/.git/logs/refs/remotes/origin/HEAD	2022-09-11 12:32:55.240638749 -0400
-+++ cross-sh-tucana/.git/logs/refs/remotes/origin/HEAD	1969-12-31 19:00:00.000000000 -0500
-@@ -1 +0,0 @@
--0000000000000000000000000000000000000000 a6bed5ed84d13bad88ad173bd340926ee1152779 root <root@the-valkyrien-leopard.(none)> 1662913975 -0400	clone: from https://github.com/xXTeraXx/cross-sh.git
-diff -Naur cross-sh/.git/objects/pack/pack-70ef1d899dc15e621c4f77448077e6896e076d01.idx cross-sh-tucana/.git/objects/pack/pack-70ef1d899dc15e621c4f77448077e6896e076d01.idx
---- cross-sh/.git/objects/pack/pack-70ef1d899dc15e621c4f77448077e6896e076d01.idx	2022-09-11 12:32:55.220638411 -0400
-+++ cross-sh-tucana/.git/objects/pack/pack-70ef1d899dc15e621c4f77448077e6896e076d01.idx	1969-12-31 19:00:00.000000000 -0500
-@@ -1,8 +0,0 @@
--ÿtOc                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 !   "   "   "   $   %   &   &   &   &   &   &   '   '   '   *   *   *   *   *   *   *   *   *   *   *   *   *   -   .   .   .   .   /   /   /   0   0   0   1   1   2   2   3   4   4   4   4   5   5   5   7   7   7   7   8   9   9   9   9   9   9   9   9   9   9   9   :   :   :   :   ;   ;   ;   ;   <   =   =   =   =   =   =   =   =   =   =   =   =   =   ?   ?   @   @   AE|ê(ÌÓÄUN#1aIKã9†³çªí…Ø"â³éÛ£ÎE0¶qäÜ¢Cã òš¬Âa~oSe™6pŸ¯ŠÑ©Šh,+Sx¾ù¡ÃÌ
--6ü¦äúxU×ıı!¼úPÅŸô:”4›Ş½±”ß}ÌlÆ=mÉ`q:ÎŠ¶D7ŠŠ•ôœ´›ı_D…f™>œ%öQ¢e&@ám2š€îKŸÚÌ®ÔÎ«é%-){tËKk<şj·›’²MÔğnµäö°šCKí ¦zRŒdàãNÚL3í­¬XOïTS˜&¸%`ÔËıbpä²qIæ¥µYX¿îƒXÖˆ</\“b< Ç<oßYÆY6à4~©3Êà’@#¡úOZpÈæ8¸ò·ù^¾È¢ºfmÇ¤ÊZÁ%ä•£ˆøï*2œã3¬ùrAæñ[H
--m__h"­¼.•¹0a–I\ï÷Úª…T»!¤ƒÆg¤§]‡„*ƒİ¥	2!¨	@Ù­™Ú	c¼›ªèoìÑğ3lÆS,+‡d˜Ÿ‘I;š1»ÃñSD`Şc°¤ˆfÖÖ=¢#Œ¦Oàá$|¶òh´ŠàË^M=—¯hFı‘Óåái¹m-Hºœ«z.:øT¼º½z°€´LÊB”ÏÇáQ&‰Î&a€Y-‘Úõ„‚ˆËx±û	“oø¡>@ò0Æ¯<‰F>-P‚>ãŞƒ>,[*
--ïµv;Ìå“?ÂWäÅÙ‹’óYÔsîA„µ¸ï:H8•{æòÓ£“Q#	®1€HWÈšlfíi vîĞÓçà8-‹÷4ù¨ÑŸ¬=ZaÔB UP°g C¢›\éíN}ëYrÚQ±‡áP¯£Ë‘ •k,ÛÆÓiû¦ÿsÌ+Q¦M—ûŸR¾EgøÖM›­0¦¾Õí„Ñ;­ˆ­;Ó@’ná'y§•‹¢Ù/SÚLÇĞúM­TYßV¨pÉğ¢-CôuŒ¤ò ‡pÓ®vkË£Üïwlğ_W îŒÇ“±KC/	N-0ÊJ< ájš„¹«±¨+»ç#<ß0Ru$ª
--Aó€B±©˜‚m'åÚ6Jdmth7Ç¨¾4sh.¤@Vn±"ñi¿»íÅ6¾P õ¢–G…$mmÄ|NŸÖGÑ¾x™wD~¢œàèZŸã•V01¿ñéQO¯ÑCÊÉÂbq¸käŞBéÃØ‰ù½CwMt¨Cî½>ÌQÆ?\üå«¼å–ZD!êMæ
--ç½ÉlœïÖFMÛÑUçÒ¡!^Ó¤Ë^¾;¦‡ÒyaNE)¡Š.VºNÍ3{–DâvóòØõ02@©8ÈÎ%~}°6:mÿÓ	ƒ2p9™¿Ò“1;¢¯Æ®+<§µï}CkÄó”Õ0z8ª9©ï„U…mnğoÇÕz„€f²9e÷/Ôášö3×2ãÿJÙ˜•¸¡Ÿå˜<Æ6È)@U”ç9ÚõÊ¬I8'Ê&XïıqVshdÛ5å@ãccüCë„hÜ68SÂ^Ûé;½lß‡«L!šˆMhÔí•{£ôL kÑypW8‰¯‚{Â‚îĞb–Ö‘Òòò­éæ;ÀD¶]æûVS²üéüi£îŸ÷”pÆû.!*é®Ød•xhYA*VĞjıÊàÛF@áßZ~rT³°2&AÿŒ¤c!Á‡êœ¦5Š$6KŠü)8Y>ÃrT!
--»ß¦Aa»™E>yØ 1¬öİ“*Åš®$ŠÅ½eg¼ÆY©CëÖ\úC§+‘Ã†Är£Ô°ï³£øzÅWÿã}±•¬ú9—ûzafÏü^Òî­Ta!§fËƒûÓ.ÖÅĞ]ŞIÏéQ|”vÛˆ!©©İuc¤~ğ²±Š×ß~ÑØ÷a°”¼‰¶@^.¶|ÿw±$¶BFõºõU¸Ì»Û¢tta#/ÌÔŞ–Ä$+(‰LÛ»‚ÒúÁ¥”Ô;hq,ö¤ö«YE|ÃäeĞâœ©Ss‰³€áz3éÄµ~aF˜I^ZŠòHoİÂ„9^¦  JŸ  I  Hø  #  <~  J  C\  Fø  IK  KO  F¥  <  E  D°  EZ  0½  Io  *•  1"  K1  Jö  /¾  .B  6   ø  <:  ;]  æ  F^  ³  ‡  Y  ,ê  I(  IÆ     ·     Ft  0H  S  EÃ  1h  HÎ  CÌ  -1  J   JÜ  t  )j  Ì    'œ  C¬  J   Fá  Dİ  ‰  J[  
--à  0h  $õ  Hª  E&  Epï‰Á^bOwD€wæ‰nm!i¸î÷r±Œ3`‘é~’„É
-\ No newline at end of file
-diff -Naur cross-sh/.git/objects/pack/pack-70ef1d899dc15e621c4f77448077e6896e076d01.pack cross-sh-tucana/.git/objects/pack/pack-70ef1d899dc15e621c4f77448077e6896e076d01.pack
---- cross-sh/.git/objects/pack/pack-70ef1d899dc15e621c4f77448077e6896e076d01.pack	2022-09-11 12:32:55.220638411 -0400
-+++ cross-sh-tucana/.git/objects/pack/pack-70ef1d899dc15e621c4f77448077e6896e076d01.pack	1969-12-31 19:00:00.000000000 -0500
-@@ -1,79 +0,0 @@
--PACK      A’-xœ}‘Ér£0 ï|…î®˜}QU2ÀØÆ$@ŒÁ87IÄjÖØÉ×Of9NÍ;vU¿KÏ#¥@Ötæ(7P&"h Íˆ„UY70Í!‰,BBÄõh¤İ4ˆ¡ j™”)F ¬ç:’¨ü}¡*˜`„3aCËÌ®#8"¶4Àf¨ËFUİĞ5M«{z¢#JïÏËDÇiİ]GÚ7Ÿë¢œÙ‚×äÚş ¢¦I†"‹¢E¸oÚ–óLG°+çı‚Áã_íù¿ZÑSY€‡_³œëƒp‚Èİùæ)>:¿98p›,b™¦e›æ›õv¨öaÕÙGËÓY¥òèŞLójß\sãa,ÇÔ+îÒçVyÒÖÃx-«ÅÕ™¥/e¿U+Ìû½ŠYõE2eóã=P¬L
--6
--núC]NÂ»ÍÛt‰LmN9Ğ91.go«  ”ú.Y-‹ËO1œš4'aÈø]>ü(Ó6o¶Ô]h''f8ğuju~ip¯òg^K+g˜tèJÜ_Ï—ÔbÍ,vyò¶$2?Ø³Í`/%ì.ÎVµdlY¡¹ÂEÆE^ÏlÕÔøè
--N¨DV–Ş§/³i›5¤Ã+-1|ÏËëÀ^¥µÈÈtVPmøË¨oÈú²®ˆ'üAôe8ïd’ËRaÇè]ç+-”êP¤U¡ÎEûß8ğ¤/Ïıiæø›ã¶åf G¤F]Oì'~,Ş„—,xœ}‘É¢@ @ï|EİMkAQ$İ“f±E”mDoÅ"‹Ê"à×ÏzœÌ;¾ä^ß¦)ÀRL°„H
--c!¥B1M¡ÄñPd99Ê^(aî´MëH£SÂB’ğ,á9bYÅ$‚Dà Ä<by†}Ş´À¥ùP5§uÒRğQ „—Sè§-§Ï¡KÛnY7mz¯æeVôù-ãæö°„p"Ï‰o‡ùioEß§-Ğ‹Ş"ğş7ûüo–İ³®ÈÀÛ/”µnÚà €gê¶ìîú·g ÆN‰YVTYvgS‡ì ºÊVÈK~ÿD­9ÊòTLyms¾.µÍ¹Wjbpy ©bÀ”­Ätº±ªjUÇF¢…©Åûp~²ƒpğNşçÑÍƒ»Gsœ °ı¨¡³70«"ÌÔ3ºV‘WÆ¯â$îı¾ÜRßQ«÷¬Q^í¯A˜íÔì;½M»òê¿^5‰lìªÎƒå¼±’<È»~Uæİ+ÏŠ´W×l’ñéøw£ò\ÀMç™Naós<Í^|&RšA^3)N²ØZ±¡·_Y–ä{<£rOC4îMûT¥¨”®ĞkC;bjá¯êÈáÉŸY#)¶ÄwÀ­.ò.õIuúË”}_-eÍe ÍYãûÇ2¡ı9¦z«šZ…úq¢ZÄ«ÕÕéƒJ·˜?ÏÖ¶öïcÌ­¨³ñ@cÛA•-xœ}‘[¢0 …ßù}'£å^’™Í´Œƒ¨€ºàªo…˜RTüõë^7{Or’/ç“‚sP(§¦mèt Ë5äpêæÔ6,DuÓ°ÍÑ"×]¥¥‚×¸ÔÎm›3Û…Ğ±9gÜáĞ@:CYáfáRÄ4…ö²lXÓ²?¯¤5¼ZrlÛtÕû6á‚nïï}ÇE7ªÁÛó0:eÙg£¼¹|šmëÈÔ4İ/Ğ„Py¶—£”\ ÿ(§}^ÿÎŞÿ;;´‡îx /¿B&~¥¿ß?ÂIºüî €[Gr‚1ñ0^‘Õ¬š.'µ·&s§¬Ìøjˆà†q†Í ˆÆÌ±®_=¯ÔÈO–µã¡ò2Õ²8”ù” b£Ùøª]­å‹-î÷æƒ­¨Jö·ÄKÇ^$z´»¸_<{ç$¨ê×\¿zé”uÎfŠ·XİHÙ¡@B9´Z_.q¶ö,ìªEMâ68o¡ñğ«Uš?ÆŸÍ½!ó¾¬NËÓòhœµ
--L°ßgWr®Iê%¹ƒ]øuß„3ÄÔA
--·	Ç
--ø²¢™Kº¨¼øÖÌĞNPı¶®“m×«û¡–.¾œ«0TÓ¢<¸VãÑ]}FşC=ßEKŸKî]wª<Ïò?Lçt,êº»Åü1Ìn[rÉ¬~Üfó[94CE¹WÏsÊ¹^~SÀ[é»Dùãl}üÛ˜’¶ŒJdŸÓšZ*óò',yà=•-xœ}‘É’¢0 @ï|EîV;@€ªî©&Ø"¨¸ãr¶Œ!(ô×Ïzœšw|Uïô¤`diBLchèX‡LM3ƒš"S3ôÅiÖUˆNk$°3f™–"5¥ÈF†ªª‚6eHµ nfbYªB;YÜØÒ¢»· M*(x5LËÄX·GıiÏ=õï]ËD;nn‚ñë0ÎKYtñ8¹ÕßŠ±f!d˜&x:„ÊO[—R2¼RÎº¼şÍŞÿ›å<oË¼ü‚|x~ÖŞì|/tö‡íÇo¯ <[’Ç!®ãlÈ&¨fáŠ»[27‹J_=ğŸ3İ}g†—ÑyjO‹„¯—šĞ‹<©€(¸ïv‡h™«¼å¥•b1âAÉY·úÀGbÎ­³uô½½¬<µõˆW¤¸{ŞVõUp„t/âé…¶ã¨ñ{xß\{“?o}åú5üvì¦'OY2œL±õø¥Cïk3DV[3h™Xèµ&¦)ª*z'_Ï…:Ñ}ùiräs$’R‡£Ü˜•0ºáĞ®vìº¡^°“}J²*¿Ú%¶à±‹‡[¤ŸníÈÍ‹B­û¬Ÿ¥ê¡]6Ş·xw¶;ò\7«…«—Ú¬ëp!sÃ–å­—Î>°f>&iáÓÓüæäòÔMÜ|v™—ìºgAÁL£‹l8àˆ³ÏÏ7¼ÙUÕ(}„“S<¥’Ù%´¡cNeRü ößk•-xœ}‘Ér£0 ï|…î®ÄìUÉT„!xÌâ	ø&@b±ÍóõÉ,Ç©yÇ®êwé±§(ò)¢ª„ÄËLL ÓšĞ1!ªªf)$rJ¸–ô´Í4&Dbò7äÕ$ yJi„!&B–ŠHäÈ4M|RL°*Hõ¼(AU•µÅgÒDŸoÓ@ûá¹nzÚ^Ïy9Sòœ6×@PUI¢  ğÄË<Ï}Ók9´V9®§¼üÕŞş«åm>”9xú5İ´68Xl,‡GßüÍ9Àû §:Æú
--cO÷¶ÕÚ–Ä•¯ï`QÉîMê7wŒêm0ökUÍƒ²å«;nÏkã³öG%â@jehšÓA•G­Ï¼«¹•)…Û`*ÎBi”ï-?¼Z®ú•›Åæ­\‰èä¹i¤…"~?Ü.×)³qèTAßï¦&TšÉñò³ë²Ëi\Ì›ÃÁ³èblsikçØ½Øµá-‹3O(
--Ø•«R¸zİ•ñë}—‰Á#Ãf…hGG<ÁÈªÇiFÃ‘ÕloêÑ»
--×=–—XãÀ¶r§˜ÅşìùÚCJíöÖÛeN£«Öàåú*Ú;'ÏuŸ~ä³ÿ0R‹Ñ>é.Ê}“¹RÓu0GŸ]üıàjMW»³È›pxOOxƒæîši{¤¶}"÷zGq<Å1ıylİÔ·û•¯kæ îO3Ó1ş]Œ;¶)§”ÔÈ˜_ÄÀßj3xœ}’K“š@E÷üŠo—…qlh ±j&TGñt×ĞÍK¥hDıõ1e*wy«Îİœ+kÎÁ°¢„s3-ÇZbÄCljHÃ1B1A:Í„%JEk^JˆTjiQq¢a³#C#†:ÔtÕ¢Q]M°…tM¡­ÌDkšµgg´d5…WƒXÄ4õaïnyMÃÛ÷¶áuóRŠšWçûKšË¬^bqùªijÄBh¨Bé)Ïö’KÉk˜ærÖFğúûş_,­Ò&O¡ÿ+#wê- ˜°ñ¦{»[»¿{èšQ<²íÑØ¶W£Õ{1³}2^|’úòŠk¯³m~p={tp‘sÜêQT<NÛbaDFFq£À@Eæô<÷…»šùÉ-hX°Y\†¶X®ÛI“‘Ú¿ØdÓø|ÜnÕì>ôÙ˜¨djì—³å\³·š,g;s/{«{g.ñGPßÔÓ 	'rŞ9«u9aÓ^wÀÚ/T+·ó‚‹äºµ¥Ï…ûÆS½ÍÃQW-×¦‰öynİ×®$Âó')Û…i©÷l^$ay‰¹îúÖÁè=Îmá\3xt„AÆª—‹ÊÉgSÄµVšíèøĞ‹C¾éñ$¸î>œ²Õ—k¿4Ÿ“ªS[†å§~¿f~7Ïïn(p¯ãğı8&Á¤Xöyä£[ “Ôaõ¾REæ«îc€Â÷Û$¤ú›o‡ªí”?ÎÜ…óocÊ¶iI! 2Îx£(6c@¡£w*ŸhÊAfâZ4Mÿy*??ïöšL´g–7²}š–¢‘yQ+‰ò‹„ÏVH¢|Pù[Tÿ .xœ}‘É’¢@E÷|Eî‘9¢ª£¤ ±@PluÓA&) LB¦@}}ÛÃ²£ïÛçn.íÒ—QÖSI	‘iÒ‚ iä"&O¬	¢NDk“Ôùù•ç]°$
--êB!OCÑRüDš,â¥L„4E\ÂhŞt JrV3Oê´KÀ«¬jª¢Húl<îI—ÇwÖ“®Ÿ×MGÚršgÍšã¦úEÖEA4¼,¤Å‚{Òª ”tÀ.¨Ãxı«½ÿWËÚ¬/2ğò+†e»>ØÚ[°smîãÈúÍ9À¡7°¡aBáº'¸6#ÃSó«<ÄÎ ¤3Ë…öwx:™Ã™åãÇ Ÿ¼/sE8@Ø×ÊÉ
--É‹°©<İ-ûÍÎõÈt¨ûÛ~{wÜèØzãùz%?(wÆ×åÚÌšÒ*åÀõ4zâ
--95>Ütæ
--xÈO³r	Y(ÅŒ)ÈX†QŸÈÜâv(è{x^	4	â•²Šè‘´^#^ì‘Ÿ•“·©ºOÇLaÜ<Hqùa)Ám¾z°C—×!
--g	BCşl8¶ÎX©{fUÒÙÎcUBi5:ÄšòrİY_eÜ¥÷<
--­3¾É+è*5ÑnC–|w³9pÑí¿û<!¹½•yÁÄeØ×İ˜]<×9,
--Ò\ªt7;ª¬?ê©e4!+ºN_RöÆ·¸16ÜŸÍ,õïÅ¸¸MJ mšçIQÿÈ0şÑÓ„xŞç?}Cæ’-xœ}‘K“¢@„ïüŠ¾£İ@Ó1³1 Œ‚0âÜhå¡Êğë×}7¶_EfUFöc€2"ËIšP1KYNˆœ"–Cœc²È‘"@ÆiJ‘»Ğ5= DÁ‹„
--™"äXÌ(¥ç>ƒ9•2ša	%XÉr,stè‹¶-†
--,Úd¯OÛç=IáÇ8dÇ÷áÆºÛ¬i;v©¾gÇ²/†d–¶õ€d¼ˆ±^ !÷¤uÙ÷¬fÙ[C^ÿÊŞÿ+;^·ò^~f˜¶¶æìlÓUÃ(0~spàqÓRMUµ¥ªúšÿQ"h˜Ë@[“â$yw±³ªŠÆ³­[/ó8´ì°A­' +6[¾à@y#xøòØúT¸*‚cFÄ$MÄ¥¿‹†Ğ@Ò‰©9Ïó­½Äû»tĞ½’ÔÍºQ
--6‰Ï>“Ô*qáhÅ·Ï0Ü8‚¿†µ:ÙßÕÃz:x—Õ†_d»á»c"|‰6$}VTå)á qµ+óöed6Å~æ8õÉ&òhûÓtv•+ßTñb¤;¦/G»ÚŒVyÆñ™Î»q Uã*ª[:·¾Q%[R…ébPü©1Ö6ÚLü}¢ºïDš*¯¶.Aûú‘V·°T?w9°»x’ŞÏYµYˆ(Úá=¯µ.J§½Y8T¼«î}ªX	'¬[W–]VQcì–×á;©RY4Ş8ğ¶ÏSƒûÓ™áêÿnŒ‹.íUwŒYıÊ¢İ–-xœ}‘Ë¢@ E÷|EíMwEñHº'ˆ€/¥AwP
--‚P(òõÓóXNænnr’³:¬#H	ÉxË
--F¢šÊá	”H†¥ÂïËpŠT)'9×â\P¡ A"¦(1I E†Iš¤A˜§"Rˆ”¢LãğÀÊ¦.‡
--˜%¾fïHQY–´ÙH‡ãñsèI×¿^›´Õóµ ¬’×´© AFª¨@MÀ/ñ<÷MkÊé€M™3$àı¯öù_­h‹àå×Ëv·À·}°wí­~ë7ç ½‘ºn˜º¾3vK*ğfkÆJ)Ï’w‡ûĞu%:ººv“ãFjı6–ß§S³Û¸74Çç¬ÛÏÌeû€„ÌíİÓñkí†NÙ4¶:Vı}Îf‡Cìó}_Ó¤	‚Ù`»²SlïY±òLÛ•áéÓºÁëıx÷2m)ä¶8údD§í0i¶à!÷cxN5ó¶ZFbº|p`±“H±×ƒieÎ*ÚU:ñº©»å:&×iLü0®ÙêÜŠãÍ2æÂø¥I}89ê‰°Ù^éf%Gi”\&C`ìYOO¹{óòuÒtN}6·ƒÁ1á­=XªÓÉX=J”¨ÙUŒ¶ËEW4yÌœW‹KXCt*ú°½Ç8Ú.´ä‹iò)€d&µ„İâÒÎÜ¾ÿàÀ‡íÔ÷§™µÿ»§gÈiEzp§mÕàì'eÕãm›-xœ}‘Ë¢@ E÷|EíMk‚Jº'Š(Ú¢n&/°€¶ñë§ç±œÌ]ä,nNÏ#‰¨ 5Å
--¢"VDŒb2„/H„¢$ªAÄZÊYİƒ„‰ŠÊ Öz‰¡„”(¾¤éE‚D“$Q…!$N:ôyÃAHó¡óœÖNÁ«¢j*Æ2™|÷ŒÓãç÷¡c¼›Ögm5N³¢Ï‡xš4·o aEQ!¼@Bá‹ŞŠ¾gXE¿bğúWûş_-k³®ÈÀË¯¦e{À·|°³-Oß¿‡æo. <:#1tİ˜ëz`Nø1WÍKyû!qû¡ë…fÚúò ŸM“™Q¦µs"˜Pl>lÔU+y^Ïm[Quw±°9s*®vÑ»¼Ru‘=!õQşfİ]wgjÈçI{ë>N³ü( ä´*®f×!*â¡—·Ê®³œN¾å,q/ùH>Ï™¼­’ÒKÂ¼«„|Š+bA# ;XZìü0K;.j«õ]gÅ©o÷ôÖ—Ê(×ğÊŸxâ©¾½­ek";¾V7re|A`àe}Z§³İÊ–n+Óô–ÛÎ•{tªùE"™ûáãŠ›°r‹×>‡ö¸F=;¸Ç0øzñXÛç°v#×yŞî†bšì”éé9$(E3x‹Ãf"zfy7¹?ÇHÂU®GfÖiox[VÆSøÓÌôÿ.&¼·Ú3Ğ7M•ä´¨dU'Ó.ÿ	iŞj’-xœ}‘É›@ Dï|EßÑØ4KÓH3QÚ˜¼`ƒÁßh3lÃbp¾>ÎrŒRªSI¯TR]š…ÊXˆaŒ˜rSn‹¢ cF1Õª	’$ ¨!YãÚ¸KëH±&K²FYJ…šÌn*¤$AOK§ˆ%TÈÅã7ğâ|,Ç5ëbğª¨XEÏ:~ı´‹ÃùûØ§]¿¨›.mËÇ"+†|¤‹¤©¾ˆ,*K2xdAàiUCÚ³¬‘‚×¿Ø÷ÿbY›õE^~ie˜¶æœlÓ!~à¿sp`êWÉŠ•Nˆ»r7¤{«­šÈ‡»ÔÙ!P4lbUíôËvu¯4šëú#°œm­p`.ÃÄ À‹D'o²¢
--—§;O»ìÇdº/§|-åAê}bòßDñÇ’¨8åh ‡¶D÷•Ëíø¾GU‡½´³Ÿ'2—çµØº·¢­ï­Ÿ@¬n*OüHæñ‹îºŠûPsÂë<w„vÊ×<ZëºiğöôNp)“SED¹ìØ•NqcXGV˜k5B°³Ğ=ä@½Åàk§Ñ»ğ¥ùy‚/Øß\lı–Ğ!ÿ<?w~V‹7Ù•VÖ|YnuõÚùÿ“é›E3‹Ó_²+¬r›6êÕ=lØÙŠnZFƒ¸}ÿnho×6Ü±mêñ¶|Uû«¸[â7¼ñQhp>3œõ¿ã‚–ÅC
--<ƒ¬÷Æ¢b?´BÜ’-xœ}‘É’¢@ Dï|EİV
--)–ˆî‰´eUñV‚ÈRlöß³'&yx‘ï”=#$’ˆU¢Ê
--¦©J‘I2Uğ‹ó)Dj
--“/y®I©zpU¥«z%K
--%øZáC„ˆŒˆø*‚—‰È%C«Ø'·¡Æ-©0KÀ;’Y’Duö<	KÎÏÏ¡#¬›W5#Mù=Ïòş6¤ókıø „AEàÁ/ò<÷¢¼ï	fŞo†¼ÿÕ>ÿ«eMÖåxû}mZ.ğM,ÓÕá~ı›s€S§_uMÓMô`›Ã¡îŒ½¾“o…èKfMšæ?'K3¼8¨ìnæ™ÉÂë–gåiS#’9PÊHÿV¬õ0Ù÷<0ìHdËífçx7ˆºeUöÉt±J`!ï¾qz
--r
--ö!`(4œ'ï%ñµ:[É;ìÃ‹gŸh­É4ÓâL%ad]TÕ‰6“M,f¦¤†-ò±+Ì¬–îCëúOÇğÓè@=-Œ\‡lÉ™æâTÃhğ¥ÙÁÍªæ®R~“Åv¿1M³Ì"48pï	º0tT¯.)JgxÜ[wƒöRjö©Zä¡óÜ±
--mT@\`%.›#;6âr@—ï’Ö<¶4P:çˆÙ¿ÜÁOä¬i[>Û\·ğ’Ç<r¿&4ËÉµJ?—Z‡ÿàÀG¸êÜŸÏÖîêßqaƒ“€ıZ[9ëùÿ<4ß˜’-xœ}‘Ër¢@ E÷|Eï©İP•L¥A‚`Š¨$»–nDP Õøõ“y,§æ.Ï­³:cÏ9`&¢–a)î4İ†f‰´’\µi	u!]ãzYT:Ó·# R
--»T¨¦1C·¾/dZ5JMQTİBH±9Ó•R¢b¬º¤´'àV´e=/&²„†-ßóŒ÷4¿¿‰÷Ã¤íz~>}Mö‡±»IÑ5?€
--MK3Ud™àI1Eú¦ÍayüÃ8;ğòW{û¯¶?ï‡Ã<ıšãùAş¬?ÆÙ:õ~s	Hà68…ƒ±ãb¼t–áA]è¦ÎUµ‘\õ>¸aì¾[tvo‹}´¯®Ëæ„|Å‰ÎÓcûõ÷;Ã†¢+f›jáÃ146ïVİàxÔ#ì‘ævr-§.m9uÀ|n 5$ä,Á”Õä¶œFˆmì1Aâ~£mM;ıYgà£¡{NV©×æq´¬„¾|ùó)‡!a˜ït–™&[‰ílåÕ‡²½ìrö*5ØR¥ğ§WŠœçõa¡°È¿'"‹£ˆ9ñ‡äè}H ŠD«½“üLî|XÍÃíåJ’”o°ÆØ-Ëı¨ŸÉÖEÏª¤¶qOoĞ“´™Õ^®Ê¥¾u‹[îêÌ¾Ê]"aµÎG~qÃúT
--¼èï¼C4hØµnÇğ«|Ğ…{I»W	¼"H„ô§™Oÿ]LZŸ9H=<¼IÃ~R¦İ:’-xœ}‘I“¢0 FïüŠÜ­VBÂVÕ=Õ HŠ".´·Â¢b.üúéYSó_}ïôg@ÅdXÕ)#ŠAi(VUYƒ:f
--‚‚Ä&Î’ZÂÙY šC!=35Œ!cŠ®AV BÉBE2R°LLdPC"½¨.¬IÕiEÎ9'àUÕ]Ó°9z¤ÆIúxï;Æ»ñùÂYûõ—µ¨úlL/Í 5ÕPT¨š
--x‘±,Kß´©…`xµøè3ğúW{ÿ¯V¶eW—àå×l×ó#°òV ñ½ÈÚl×îo.	Ü;›Ú–eO-+¶ã †ı—?]Û¡^ñò†¸·,˜È¾¶şÑÕ£şa6zøö^´ú®”Àr; é/NEZ° |¬f»¹?Ùg4uìD]GıMÁg…mÊjßéÆºïisVF¤ZšpYry1|üv©çÜEGª¥Q¨«s7á™èC¯$×€öîSoÄÚÏv[¯ˆp<=n$ĞPşñİäy²ûc.N×ş3™(¾LØ°¸¢ÛÙk×'‹Í6!U*Gôâs²ªqÉÒí‘¼—@{ñ1s^Ö¸û¹ÖLY9Á‰vsZº·íª¸·ŞHİñ ÊÃ’xÊªï#tÿ>HÀK›É:koóë6Ñ.!ñê”eK;M½]{=ÔO{Ø=Oz	‹ÁºÔ!µDpÕóÀ7mëMo‡4•¥?ÍÜÈùw1iÛæD0°v-gá›ü'´OŞ’-xœ}‘Ër¢@ E÷|Eï©š¦©J¦†‡(‘((²ãÑ<E	Ò ~ıdË©¹ËSuê.ÎĞS
--0R‰š«©R¢ÆL’TÊ¡,!„…Œb	âDˆ!\÷ô2 "8A(…b#QEi*$£BŠ˜¨)1†BÊÅl(¯=ØÅ%;ƒe_²>/²BüıÉßCŸöqxc7Úß—kO»ó¼(ª¡dÉ"½¶? Ä2e(+*x pß´­†öÀª›%àå¯öö_­èŠ[U€§_Ókõ<Ëû•õ¡ùÁÎøÍ9Àé¦§º¦éKMûÔ?
--²FYîôµRÖh;JıjÒ´¢•¶nÓÚaCŞØµĞ!2‹™·Ë×Æ­x\o2ªÌe³íÒ¶b'?rY‡,ßÌŒ¡ªÊAÎ»†$—ÄÖh^ó¬ÔMš%8Lcœœ¹Îº2¾K<õ|7½60]èl˜§<OˆÂĞª÷«¤“¼öˆšªß„×¨¥8ÂyÏ›E“C{:âÃ£vK‰g"ü9…×yÚN¥inzœ´#å”àlmºùâÀØáJ
--‰Ğì+Æ™ï/ŠK£¼gµûĞ	Ô–{æÈÈ"¢”~|·İÜ&í~?õŞå€(/…:´õÎ¦¡d—£r:òğt#ó©~‰nœi‚£lCß=EjdG)åü>U¼í¯^9ğŠŒöÎıif|¼ÿ»·ìi<P°3´w×X´ÙOâÀÛÇ–*xœ}‘Ér¢@ @ï|Eß­Äš­*™JƒlC$†Å¨7šE@ ¿~ÖãÔ¼ã«z§71J"2ÓœÊ	Q4¢	D@Y†r(S"Q”Ëj	DHä’y*;‚¤œ`”É%c	x‘U‘e¤­î‡ˆ²äp›GÊÆçKÇhß,ÏE5•3yN»öàeI$×Tğ„ÜOÛVÓD°«É™	xù›½ı7+úb¬
--ğôİ´]ìì]ÛÇQ˜¿=8põTÇX70şÔ?¿WüLWF {JyFW‘¹7Œ•xt±n/Ò285ºÉe7FäªøÁ¶ˆ´ºÊéÛ¹Z3á”Zl¿²ğ‡ßCı®fï1ˆ^Ä7t•Íš?•Ka©†|t?×nÅ4ÈùõiUf%o:†¸˜„–w´”°··m¼Ï|Z–W–ä,À_‡+/4Î:XÌœãÑ_$µ®p{>½ûN‘F÷#¾…—¦s¦©ÒÜ†ßõb\(ƒ­r_Ôµ$ïÃ=ûÚjXº¸m[O×zqlãù5UÆê˜Šb¸â»	›÷À@t;èÙ‰IV¨×"kéÄ`@øüÁ¬h43!ëOÛöÖp8ém<»Uİ4È@mrB<z·Ã‡¼_ÏEqşš÷^¯…Õ½ràUÛø÷ç™éoş}ŒÃYòª¡#¸V	˜û¦K²fÒ^®)xœ340031QrutñuÕËMaø-&¼‰åÏK‰?™‹ßÍÿ>E®à˜!DQRifNJ|I~~NrFbf^qÃ¥É†Ö‹Ö[§m³|ëûZgéì#Ÿ§@U§–”€ÔœÛg½¬ıRe¢ŸŒ«”æÂ.½°]~P5³’óóÒÍyùÖ¯öudÿ-æÀí{Ö£«ŒOÊÌ+-ÉÌ)½ÿãËÀ~ÿõO<”T¸#ûÉ=§—Ò““ãÓ2ós@:2¶t=8Çäk;}ı¼·¿/?}(„UGqIbIf2HËFog}N?]ÙS^6³fµìì_©%'3	¬:¶½E«ùîRN#Åœò7×
--Ì¼Å‰¡:è‡ŠøŒÔÄ”Ô"°Gí>[oÃŞéf§Ğ$m7áñ=]¹¥Å`?¼»4íÇÄKŸ>­}ùÌú€Ë¶XñgŠóRËN):¨údêâïµŒæ<6^ó³ÈñÙGå™Éù0/4DêN¼ÕÿµE¦©ãtÅÆßœ“ó,„i(MNÌKÔÍÍÌK/×+H,IÎ`ØgRœ¡·Ä!,g£ÒÇÌı²»ß5CQUwÕ Êb•åÊ÷-¡­¹yòó3‰AÕ•§§–0ì«˜Y.áR·hĞƒÂQóO30 ˆ¸H¿Lxœ]TmkÛ0şî_qĞA;Hã}ØÆ(lĞzm6H[Èô[­Ø—HD–ŒNNš¿;Ùn×~²|º×çyNgPOtI:»†µ3¤,Fğ[ *˜6D›ÎØºw†Ê7­±ì™e+m¨¿#P`ë^§è½­´2¶Á7’JÅJÃÖØ(2•²öÊÕ B¥MÄ*v{T0OÒBÁI7AşišeÙ,1v-ğé~c‹®FWñe6+
--øõó@vÃ]Dc‰³‡5Ü«=Ç%Ö|:îx:vS¤9âÛôôé
--ëB”‰¶>+w&B•Œ:Æ–®òœ-ºÛL€üåi…A=½ä#€e–²ÜÖ5¾ÀînË%J§œÿ`.ñ(¦ùhçd>âÜ±ÃÒ7Täœ|•rÎGè!ï(äŸV×‹Ùíê¹X<.—	biÀúJEÃ!§ÚXœÀ±îYßF¨M`ì}èÉ”
--èÔ0•û‰4çÙ1Û¥òÑX‚†àïYE(ª
--gb4’eÌW2¼k‘;QqFş²Æ,ÆÜ-|ÿz™ttÙtd?¿ÆÏÿŞcÜQ–’“zR.ÂÅc+³²1Ì$`÷ëå\Æpxd!}ÎîŒKÊ£!íõ¢øó
--äN¸Œ™}Ç¢wÈ²AİcphßÆëË*{c£ÄCUHì°5rÂç#'L[içÃZÉVñ ¡ë±%ü”µÚoã¤Wè+ÿ—„¬œæ£)Ûr“H„¼ßJ–#uµ—]Ô}›Ïo
--äà´°nkn×íÀlû²\‘IïÒëÀW@¡•Ûa*!Gâ@äõ^ı¢-qY/æçé>-!ÃİIV¦"Ö+â¯øõÀÑ‰"6 ¹óÕÁ0uUªXODÈ¤EGöò<üG]¥Q¶Gxœ”QoÓ0ÇŸëOqi4ô”†ª«Ô­S[àaª"Çqš®]9Î¶
--ñİñ™NLi€io–ïüûßß¾ó«³¤@¼©Y#¼“ŒIkÍE-Å÷7oá`··pñ..à=l6ÀÕR³Á@ŠÚ@4¡NP ŠU	%Z)œ±‡ˆĞÁˆ*d?YcZ+$8c”¨9ê¡0ºòÂ¶rÜ:ÔÛ#¥òä8]f—p®†x>gçAÅYÜ+_36¯Óåt²Î³åbµŠIciŒºu¨šáp1òúG:/c~÷õGHJy—èV©§× Qü)êB§Y¾Ö­„Qw+DŞ8îP<—œ™ıÀämî«z€ôf—’—Òö–®()¯	ÿUùıŒáé§a±Ù°ğ” ĞõGñˆ]g
--‹SS8ñ¥:šW_VóH^µêSÜùı—	ŞÌ²E×g¾GaÈÑè×“o~ù”İ…kyïÙ}µ÷á	ì8RAâ+·È%©ÅQßq…åqÊ~‚:ó1?['­OÍT¡æ
--šĞ«¦¢Æı[Ã†Ìçökª|6Zƒ•;¹+$U¼,ı-²t=[\'mcéƒ¡@(yÏ]±_XHj+ºxœmPMoÂ0=“_á–]ãºišJ)#j§~œš 8Ô$U’jğï:6mh¾Øz²Ÿß{Ã`¼%5ŞnlÃØr<âq‹œÜ‘× Ÿõ¡n6¤FµV$¦É<Ëè,©½_"¶6Ô:fÑGÆHÂjpy{¿^?^h`İhçQ-şı¢´©;µ 2gİ©^“¡}ã`Gk§Íù90¸¼î	“Ä¾ø“™(¡\$PfÙ2^D"ÅY:ÿ¶Wi*Ò¿!
--(â\¼–¯Ùb“{Æ¬îL}›Ã•½êøØ{Û>³¾yyõ6dÇw¯xwEVåqR¼ÍDşVb9ë±€sRmçøåúéŠøWT‡~üqË[ƒ’NOX?nÿ‘G¼<xœURaOÛ0ıî_qS+±M%¦l 4)BÈhYhP’2Mš„œÄ4^Ó8²¤ıøİº/­c¿wïî½} …hiÁtMÈz¯²WĞ)şÌÛ’k¨¹â„dÉ2£ìéfúãİP}¢q Y¤ùÑ¹^Îã›cdÑ‹¦"»ò§0M²ÌgL•õå×ÓF´ıËéªíIœ„A>O>íµ¢ãc4™%Yî¿\]>ıÇxò™?>ğgù6¶÷ä.¹Îüó3œ)ã/÷c5¢(İDPÉöÄÀ³T+nÀHĞö¯æ°åJÙBÁ9 ;Ø2Ñ°¢á ;ƒ²oãùu8Eô¸_f1Hó0±/ âÙ
--ÂÀZØ–A)73+	ó
--e-¥æ°rıHÔUƒÀoa@hP¼Dô†·¯lk{ğ¦×±Õ}§Nl^ßQÔv½æªåÍ¡¼\ïÄÑ`¨™®ÃXkc:ıÒ•0u_x¨@T[ÖTš:O©QœÓÓ†+jãñ bÎ¶®­¢aíÚÕ¬¥6{=¤álŸ‹ÛV®ÙŠÃãÎCMp£Ô?÷¾\‘0tçé¹7õÎÈ(]D±»¹ğ¦WŞôŒ¸©ø[/±Æ¼ùnÅ­_ÌÊ%:Ô¢¬A¶üİjVÈ-GæaØa<ëÛ©%z6%6«]'êawû<`¼ØòI”Œv![J†kvD8r²¥´o2:ìÂ™ó½mYKÌ3YÄ¿à&E’C8·ÑÁ•ûà.I<Ÿcş0~7Ì^Â_4¡‚M{Şgüy¡'ä1Y60êƒUxœ;Ã~˜}B…j……Y¼™‰nNf^i…nniq—¿³cˆ§¿Ÿ­~~A‰~rQ~qñÆ¥Œ,¾¡Á>›w1
--1 Qn¿xœ]PËnƒ0¼û+\…«á8$€*¢¨Hz,àâØ‘mÚ¯ï’)íqç±;³»—¨‘:j„‰Oåf¶-P?mîå0[á¥ÑÄm„1ª…ÔáJr†·Ì^*‡öZ{a	i;êü”Ó¼$Q¶|ö4àE]&_Ñ(@+Pò•!JÂåûî{‚É)ÏÓÌRu„\¦NÚm@ı††aôÈ”±«…^.q4;<ÍnÒÌ}9kŒƒS‘ì«¼xC¢“N4
--˜VîiºµfõáéĞQíË×¬:'eÁ9øÅá1¥¯°ÓÓn©J­RPà_jTG{©Àıû½Pfû¿İ ÉÊƒl°*xœuRANÃ0¼û‹È­8„8 õPÒŠ*‚’”kå8NjêØ•í´…×c‡@[·ÕŒgvÖ»çgQÉeT³Bè’=· $0­•F†YÀ<‘«NSvÅ€*Yó¦ÓÄr%‘¥].CO#´Y7ã†R§\HK4B´‚à~1›O—ÓY†x¿­!ÈÓE'¹G£À©pÇË×$İ“pÿÑëà>‹£l¥ì¸¨ĞàöË¬İÔß„Wáå·U»¼…Ş—‹›vƒoÃk÷êDûûê¿¶_ı(›C×öBíºâzˆï&æÃèûs`¼Ñ¬æûqÔ×3IJÁ° ²éHÃÌ˜^ĞÑÈ7=ÓvÂrÁK¹Ö³ã ˜dI±Œ³4Ï¼ãv…Í»ÑJ9rÆ“b–>Yìú½»…·dí¼Oé}é*=ô2)JŸÌŸÏ]àq˜&yá¾àÈ™Kc‰~iS&˜ı: %*¨¹`æ×Qè°®O×ı	úsÏ0ä
--|xœ[Àz“UHYQ?)3O?)±8ƒ«8µDA7u£j+£CJfqbRNªnIFQjbJ±‚®.L¤8#±(5(PY’¡›—Z“™åå—–èf •§O^Îè¬ÀÅ•›˜ª˜“£›œ¦K‹ÒSKtz€"“¥™¼¤ÀR™yÅ%˜Ò©LÖ 8¬ä€
--xœ»Éz…uƒÓd?&Y–ÜÄìÔÉYLù J¾¾á…7xœ›Ïü‚i‚'KniqÎÄ@YßĞ`Ÿø0× ½’Ä"½ô*®ä•‚ìt]ÄÄy>ÂùÅ%¶*!Aî®!ñÎAşÁÁ
--“Í“8a¹ N+¡åUxœ{Á4y‚'[^jyNfÒD_E?×pO§ø0× ½’Ä"½Š*®ä•‚ìt]ˆÔÄyñ
--ººå™%º©‰)©EÅ¶*>şÎ!ş~ú™yÉ9¥)©ÿ&q#â ¾0!Èåexœ›À<y‚'kzNfRòDywO'çø0× ½’Ä"½Š*®ä•‚ìt]°ÌÄ%Ì¥ÅE“¥³¸àJ¹  th³·xœíZksÚHııŠÛµIF´^€0ì2Û»I’©­©)—¤XH*=ÀÉÖş÷½İ’ =xŒãı¶±¨ûö½ı8ç>šXÎläÎHB0C?ŠHdËÓÄq­‡Ø÷]Ó6OŠìu‰Óğ²p¼ùªFP „ìSôJS4(]¢* ê½V³×>—º­®·ÛzˆÒRAÅ£–â/*l·Ôn·ÛT”Láû÷@ÔV£©ƒˆojŞ¿€š¶'˜FÔ/‰7’$éD€©‹^Ûy˜æØú—_A¶èRö×E-aè‡¦MÍG89ûû‰ –ôò‰ƒM‹†v—4óî‡¬»F}QÙÕ` ãØ˜SPkç97Í‡(6bÇ<b¦$U>ğƒïLwlS¸Åu>ÁÅç¸ÎfÄ¬’—Iíœ3©rfğûïpv{óa ı>\ñü!´é	 ²N&qÂ{Ê+tiuq\Eu}nÉğ§/ãÛ½v?%‘[kvÏµúùf0ª®¸d pLŸ-íYî†¿áÇ¢ş²®PíjMDò*İnç«:ÆÔ¥àDàxKÃu,H‡|÷Ñ{lHiúŞUÌàO-vğà şFgg¸qø3F‰Tà¢Ç3áÂuáÒ÷hBº ‹)e«Ã²p§Gƒ‹ÉÍèNN¢PFoÀ:ø²#¶×¤¿O<l0qjhõD°jœë¦‡Ûé¦½ìD[=¥#©İóN·sŞQ:ÑİŠº=­ŠÔóf«ÛİvFDöÂgl„@Ìå`g“‹û«áäap?	n¹„ÒÓjÇ¾aœÒõY×zhğ£<tí—kGç½ÈŠ]¶¹+#FàÜÕjªˆ	âÎ9¥H®UÃ»X,‹í¿äÒ2Ö‰ljÕ"'¦Q,™;5í,"&m{¥vu<a4UP»=EÁ_IÉÿá!·÷¢%SRDŠ¢õšº¤75]ï(İ-¤(ƒl£Ã":é&…¿E±åø’ı« 
--¢,Ã•¦üA·¦¿—†¯ÑñbX }ß¾ƒ"@bËìíÉÄf^'Ø|NŞı•u†4NB|øOı|Ò®„J;XèûIŞíU¦tYâ¢hú¹ª+í÷´#Ÿ¦pöG_îÃñÃåÍ}_º³(MŠ"ìALMxûÙÛ`e½àÃ—›ÛËª$Ù_ß0BÓÖ[Æç^"ˆ…ş§sı»WøÇ×ÑÔÈİa_àz4äBğùbrİ¯øÍŞkà£cœ¦„¾ùN §0¦.53Lğ8hÓ‚å{ob˜ùáœÆÌåFìcÀ)èøL©ë¯Øğ‹¥á¸<:ùAŒ=ˆÎÓˆFiø÷ÃM@Œ£hVÂî›±481}BMNüÃ›ïcä^|4®|vbÅš(½ E-6·L˜e
--aêûÜ<Cü)\àn4ÁõÅİÕ°“ë›qz:p}Ÿ†Ã;¶aƒëá%|İÃ§›»«ß`twû¯×¯‘\o p½ql#ièQ·‘b¾g¸[°²¾_AƒÇAÔ“å¹ÛÉ±·@$†¿­Hæç%Ç!¥òÂˆbÊÀ-5–|¡S×ğ¹NÛGÎ¦örq?¸îáBo±Âç4¦À×ô`¼¯Ãû¾&5»üAÕ$MRòÏáıİğ–7±x#iá{•ĞS¥#¶ãëes`Ñ@p¬¬lÇ´ãõæ©¿¤lh¾èÕj%±!<Æ äı¢˜6àqAx‡ã(È¼”Ù§TmõÚ
--naKUõfkÛ‘híFD|USO²x´œ¸OÀ´òO‘$™y(g œ	B:súŒÂøD=F3‚°˜'xâQßl˜8cB,'â=‹ÄÅ ëL±	Ã·_v[’+ˆaÃ
--¡I¢ïQèû1·#—‡p	>Á#ä\ß4Üíi×‹¡¢˜.Èœ« î]s>áÈF¯bm5Ävˆù@ô¼m©:ÖÚ­¨Ëµ¢B­æÓS±Íˆı…c²³\”E†«¡ú0øx{q5î¿!£èok÷‹Š‹m5o¸'<änL¼Y]è—ƒÇyTÜdr†mñ#X·©[AÿZzïÖB/J¼]Z5µ§u¤n§ÛmkM};)Ò´†ª"õøÛó©WE]˜>i©—=ùIœ'­/ÀŞ#‰²g†?=ƒÔˆ+VXğ÷T!Ÿµ Y~‘¡:—Ë[qü¾Üä ò¹ªüsÁlfnK.b—­bÊ£µïZX¾º4â‡~¶NÏ±#¿ó8ˆÎLp''²ş—£C®ğ˜ƒßÂ54DV$ Èék¶ï2«ÜÂr;By.ˆI ™îX5ƒå (“õ”Rv ³é§Å"ÿâáÁ°Öâ&§UàÓ¶­$ZfŠœ­ó¬K»˜ÊSvÿ¦YhÊZlÜ¦3YÓ™ 3K¨*±‘8ãk	¢QŞ’•W|
--™çÏŸ3,>ìŠ—¹{®“ŞáÒ÷iÙõò1„ á¬²¹û9P¹s<Íò€]œ(Ë½7*ŠÿGÎwp„íñÄ¦Xf°ò&‰Üw,Sğ}kå’sc`»ŠUæÆè_cœr¾%˜È;‹ÒÔÙf¹~ä/ğàB?aEC!;Åˆ¦6‡OX
-- ¶4a{ëù1–?Ü¶G)«f¼Áª(»\z÷“|fËL+ş´”Á¡Œ½øœ.6e<_ñs¿)Bª”ßôíæ<£/ƒÎØk~ÃŸ;ÀÑì5$D°„­Fù—ã‡o™¬cmÏ›Î‹¨~‡Ø:‹ı.¢òUÊ!†–ìre¹Ÿ½QÛ­¸TÊ©=õ\ÒZM–Q¶ôê-›ÖJ¯Ù¶\„˜ÑNÜC;±vbz­À/ÛaÌ‹#yîwAd\Kï.ÅœkX3M¬çÆ‹—¥Š›„?ŒlÓ_éMoKÊtKÂëKXLGwØRÚ.rÒä°˜¯ñKš:l–—™a³:ó#Ày4(ñÅAX_[í)š¤ëí¦®´Ï;Uğ5ÿ¾?¾r›²yşXv©é×ÅkP!Êg"IUÓYQEŸ:Œö†[šPí-Ï@kîw³Ãà)Æù#:/Ë§»‘’ ğq—x­`ÂğÍŸFù+«¬«ü_PqÅ®ë¹ÀºŠtc-?™Ö¨PZì[“f³«´›Z«ğŸN)~9ß]Îâ@š{	¿µÄw+JöGÒ[Ô­ëü%iZ”ŞÔòÁA2ÍnzÓFyÙ–Ò’Ş¿ævÚÎ¿J[ ìb·b¸2eV’¥¯l€~xÀ"`DÇ9©¥Éşˆº–ï•…ü…´Pz½kb.Ÿ:&şeƒäÑXBÿ5ãhãFdÃ­çôB,æÓ»]lù+ÏõKø/Ruõâ’uxœûìÖÎÂ«¬¨Ÿ”™§Ÿ”XœÁÅ5yƒx!#×d	SöâÔİT®É7¥¥'¯ŠN—PT,ÈN·ÍÉÌ+­àRVÍ+I,ââJNQPq
--õôq‰wñâš|OBÏ$T©«âíäçêæÄÔT_¢P’‘ªTš™“ÂÅ•›˜ªàäìa«"2RSR‹Š¹&·Hªpfæ%ç”¦¤• ,®†jKQ®‚nQ¦% á§>ç•Zxœ›ÀÜÎ<á%§Š¿³cˆ§¿ßÄ—ş“½İ _Ó
--é#xœkgîgàÉQ™œŸ“™”<ÑßD5ÀÓÙßÇÓÉ9>Ì5H¯$±H¯¢Š+9EA¥ ;]W&9qÉ^d…\ lïDêÒ•xœVKl×…P™–Æ²M™‰¢d=RT,‡|óã	]ÉŒ+‘-W”Òu4‘‘3ÌÌ0²ã…Q ŸMº¹(º*P4AÑ.ºLºktÑ¢-P Ù(
--Šî{ßğcêk´õæÍ{ï»ßsß¿oı´ò8?;ÇÁÃsAøÁ¹¨ñü¡­éûZİàİÆ¸,Ê2‹T‰”-)jIQx9'JŠ¬UBEE¹åeÜdD’–2’D–—¹ôBBØ5-aWsĞ¾[ní×L‡Ğ6ÚûuWHm­l¾¼ºµSÙÜ¨V…·4GĞ5½a-ÃÑ;Î|zeœ\ÚĞ6IÂ/ÑçÈ!1Z×õ£”¦¹«Ã¿ä¹$¹qâQ5£mXµÿSë—NÓz†‚¦9z#§Ğ¦iuîÓºÕáÒz­«…KÃ¸˜a»®?	,ãúY 
--Şùü8:Îc;Ùt1Dwl×¥nƒz]³4Á³í¦ŞĞLk§Ï¿Æ¯‰Ò'‰œ-IüñjAVrEEA˜šyõ-Ç™¬Ä+R1¯Jy)7”wIÍH2f=àÍÉR¦× î×±m¯œZß¨¬l­mÜ%”ÖLWÛmÔB3ß¼†ø•¬|2óáğ úŞ•© iiû¡o¤^Ù¸Yå“¡ùQbPÁE££cÄ´\Ok6áõĞR˜8-B=’ÂÈÓÔúK;¯­nÂçWá³±ŒŒ+‘S#sã³°ôó¥¬Ê‹Y±P”ò¹Âp2YLVaµO†jÍ¢ä^Ç#ìCÚ±gXºá’†áØ%d«aº^Ã ºmí™u²g;d·c6k¦U÷é[˜ìG–Fîu›Òerk{L#9Ğ,x6é¸²2=vWÖ×¢Y6Ê;£ç9v†ÉU†¾Ol4¨_KbzÌ‚.Ñê–íz¦Î,¯nloVV«;/­mN–SKíƒÚuÁE?tfür<}—ŞÜ^ÃP"Cÿ»:G‡óW¾_Èí: Õq›ígº,ØmOğmA•ŸÂêÿÏ8·£,±eYäÒş&µdµ[¿Îøwc„Ào¸w£w¶«ë\z}íf¥ü2[Ñlüƒ_]øîX÷TÔšŸH<¢İ„—e>[àh¥â¿H2/ñ"G_]İ¼»ºî“T³/!Í×ÖQñˆ|‘K?•—Q>}X¾ÈË\úxƒw'¾şeÆvQ.‹é8B ¤áym·$ôÂ| 9o;uÁ2„ä¸»úeTÍ„ª>$À§Â“mS·J	ıVö#|<…µ‹ôôÚîñ´.^\”JªRÊx¹XÈKù¬¬U¸¬2`OË*X“7@ºTÇ‘sg5ùá8X‚ \™Gş?Îb9êWÊQ·S³ı&†¯ps0Œcîÿvy¦ƒó#¬‰EØ	İ‚¿'‚G§á¡~ŒœÑ·O‚	•}•K’XR0Ùùb±˜—sÅaÏ2yôÖ¹®áj`ıü9Çûyx:ƒ=s«ßöŒ±­æ ”qX°¬m[æ Øçş:„‚ğQèÅÓM»=ºşx9qeL†ª‹‡ïéˆ#âyÓÒ›šáÇûaä•vÁ|¤,°_`øø§Å ¢«àkè§İ†©8LÄ§ákS“sÏœÈ=[æ’Kr®¤Š|1+åIÎKÃæ2´¶Ğ»`¸ª-Ï‡¶.Zôm]Ù¬Ü.§ØŠø¨ÕÇ…É™iøQìÒ•{\zp‘€÷"KèÅ·b7ÈY8yèÂ§1‰Oëmí·.¡§Qxş,‘^€~8“_DØ:{3`cãw±Õe}öè½|TZŠ/Á÷§Îƒşê¨Oø$\˜ëƒQãëos¯İ!†_ ›‡[‘ÛaÖPG¬—p
--ßMÁ·gæÆúª°PçŸïbÊÙ>uy˜W×ìÏökò¸†!Ï=úè¢Ù;±ho³±«èFÌg†­çBŸoêÎö€qÁ“Ğüõ!öÿ-3¾†/†¿7êo~~qìŞZeƒá;Ú=Ø÷,çÇ`^$‹~\å†œeüğÍèü„Uá nx¥tà€Oy¶}¥ã|g^ËıË9C9ø}rŞO\˜ÀÑ' ~Q6á£ÄÊ(|`%p-)à.	;ÉKœêŞı·8.'§Q4m÷»ÄÊ{Ït©¯ãÿ;‰xœã3&#şóÉ©G´?ÔüÆğsÀfšc4Í5\ŸLı	8(ñ=¯}|¶;»ıAØ}P…Í_£ IrVH÷Ï«ãå²³»ÊëvK86!Ÿ_³¬¦­Õ‰Ïóùõ_ûÎÿ,RÑ¢ãŒ^xœ[á<Çyƒ#“˜Jˆc»kH¼sp0—vrŠ‚~Avúd>f™ÍåLÏ„&şãü›Qhrƒ¨Ídva¾ÉlùÍÿDWq ê±ØäPxœ›ã<ÃyÃeÖÉÚü\“?‹šlek— V#Y»"xœ…PÛnÃ }ß¿`²¬Õş&!” @\–h_? -ªÚiy°1Ö¹ØctáñH“Àz‰ùEÉy	BP8=”ÛÏÛ|#òÉÀ—ğFèÊuiD­LÚpoâwÛŞ!=ĞĞ…gë1ƒ£Ò¡„Aw9bI­F¾ç‚ïñ‹+A> ¬u ^/AhËÿÀW_yÿë`K
--Ê˜•à…C¡¶«~w×Ïºlò\¬ƒí¾F¬™{²	Ë&ìÄ(eİËpRÅ9Àí‚Nq[ÔŠf>ÙÕh;LHáç õ{_à\ñ¼)àÂ/xœ›Ç:uƒ“È­¯§Öx²[¨ŸR‹xÿ·0¬8#å¶éä0& âEÀæ¥uxœûìÖí´¡uójö<1~C+=KcKsÓÍrîŒ›çÊ_c ö’ÈkÃxœ›Çúeƒ)Óäd&k c²çÃ%xœ›Çúeƒ)“´^AbIrƒÕ¹®m.æ]]S¿ÌÙ2ûo¼KkÚÌÉuL
-- >¾ûçÃYxœ' Øÿğ°5.patch 6ü¦äúxU×ıı!¼úPÅŸô“~ OÇæÄxœ›Çúeƒ)“”^AbIrÃÆ•3šrÕŸŞ2óJÉ-É0?Ş»br-“" "ËAî‘Exœ[á¼ßz²›ìä·Ì<“70/™œ&';y™ Ûæí,üŒ“¯°ş5°T02²22°2²Ğ34¶°02724ßüˆí8ëä¿Âì¼V†&z¦F¦& 8y/øä‚6›x}'×°
--Onâó˜ÌÏÏ1y.«ĞdN~ÑÍ:üñLü@óLõÌÍ-ŒMÍL7ÏÌcÜ,&<‰ WB)	kÅ]xœ›Çz‚eƒ>ÓäV&I „äÅsxœ›Çz‚eƒ2£Hšÿµk¶‹”{–ù?}È¦R³íÓdsÆ“[™$ùœ4î1xœ. ÑÿÈÈ%100644 README.md Ù˜•¸¡Ÿå˜<Æ6È)@U”ç9±%#s—6lÂlxœ;ÏÙÁ±a6ãæ$¦\& g;¨$xœ340031QrutñuÕËMa¸9cêú…¢óŸÎ°9fvBÓ!tÊsKCˆ¢¤ÒÌœ”ø’üüœäŒÄÌ<½â†K“­­?¶NÛfùÖ÷µÎÒÙG>Oª.N-)- ©9·ÏzYû¥ÊD?W)Í…]za»ü jf%çç¥1Ä¼ÿ.tKnUkÈnÅ%"ÍÇøÓ—È.GWŸ”™WZ’™S2ú·¢ÖKöu7S¦VdD:jÍ»…¡!=99>-3/1¤c_À‚¯<‹¦¹·ªäæ­ñ›Íı"VÅ%‰%™É -²Û
--ŸÜYäüxÁ§Yk%Öå§ÎÄÔ’“™V½ø´ĞD†©Ù:·]Îü½ìñíÀ~Õ9@?TÄg¤&¦¤=ÒhçğÉàØzöN7;İ€&i»	ïaèÊ--ûÁ[bş­3ëæ^9·ú¥ª®fõ\!Ñ’ÓŠóRËN)	¡¶C5áÊé¿IO6z>[º5CyAfr>Ì‘ºoõm‘iê8]±ñ7çäü¡ÊÓSKöUÌ,—p©[4GèÁá¨ù§† ††ëæçµyxœ›Ï<yÂcNgÇO¿‰3&Ç2: b‰Dí´xœ[ÀÚÆºa1#§Š¿³cˆ§¿ßäÅŒ‰“E™Ì'Ç19 ‡§¹ã±:xœ»Éz†uÃFNgÇO¿ÉÏr&eæY©8†xL®aŠ ×™£ç¯xœ›ÀÜÎ<á§Š¿³cˆ§¿ßÄgÁ“½]_¡ç°cxœ{ÁtŸiÂcNgÇO¿‰õ'«0º  m%dàƒwxœ  ßÿÈÈ°Q9†³çªí…Ø"â³éÛ£ÎE“eãç¦Bë¯|xœ›ÀÜÌ<á§Š¿³cˆ§¿ßÄgÆ“ee&{3º ¢±îWxœ;Ár‚EÕĞÀÀÌÄD!ÈÕÑÅ×U/7…áğÎŸ{{Ëë}KV8ó¼Ûkw&p£ª2 y´”äÉxœ;ÏÙÆ±A†q²,£ŞdFÿÍIL¹L AÈî€1xœ;Ár‚EÕĞÀÀÌÄD!ÈÕÑÅ×U/7…áå\ë½ò9÷Ûù9VûH(Îêğ•È¸²QU™	 T:.ëÉfxœ;Ï¹ƒ}ÂEm.§Ì¼Ò’Ìœb.w¿PßÄìT0#85…«<=µ„Ë)±8CÁÎÖTÏ`²£ÿæ$¦\& Rˆ†î0xœ. ÑÿÈÈ%100644 README.md Æ?\üå«¼å–ZD!êMæ
--ç½±%#~¤oÊgxœ;ÏyˆmÂÎÉşŒ2›“˜r™ 2uoî‚xœ;Ár‚EÕĞÀÀÌÄD!ÈÕÑÅ×U/7…!yÏlÉU/òyŞ\ü`Ì“sL.XG»}£ª2 cĞâË<xœ;Ïy˜mÂÎÉşŒRL:
--›™ò˜ @0¼h‚`xœ;Á²˜e£ª2 Åopï‰Á^bOwD€wæ‰nm
-\ No newline at end of file
-diff -Naur cross-sh/.git/packed-refs cross-sh-tucana/.git/packed-refs
---- cross-sh/.git/packed-refs	2022-09-11 12:32:55.223638461 -0400
-+++ cross-sh-tucana/.git/packed-refs	1969-12-31 19:00:00.000000000 -0500
-@@ -1,2 +0,0 @@
--# pack-refs with: peeled fully-peeled sorted 
--a6bed5ed84d13bad88ad173bd340926ee1152779 refs/remotes/origin/main
-diff -Naur cross-sh/.git/refs/heads/main cross-sh-tucana/.git/refs/heads/main
---- cross-sh/.git/refs/heads/main	2022-09-11 12:32:55.240638749 -0400
-+++ cross-sh-tucana/.git/refs/heads/main	1969-12-31 19:00:00.000000000 -0500
-@@ -1 +0,0 @@
--a6bed5ed84d13bad88ad173bd340926ee1152779
-diff -Naur cross-sh/.git/refs/remotes/origin/HEAD cross-sh-tucana/.git/refs/remotes/origin/HEAD
---- cross-sh/.git/refs/remotes/origin/HEAD	2022-09-11 12:32:55.240638749 -0400
-+++ cross-sh-tucana/.git/refs/remotes/origin/HEAD	1969-12-31 19:00:00.000000000 -0500
-@@ -1 +0,0 @@
--ref: refs/remotes/origin/main
 diff -Naur cross-sh/package.sh cross-sh-tucana/package.sh
 --- cross-sh/package.sh	1969-12-31 19:00:00.000000000 -0500
 +++ cross-sh-tucana/package.sh	2022-09-11 12:31:53.777592015 -0400
@@ -1253,544 +240,6 @@ diff -Naur cross-sh/toolchain_picolibc.sh cross-sh-tucana/toolchain_picolibc.sh
 -# Delete the old files
 -cd $BUILD_DIR
 -rm -rf $pkg-$PICOLIBC_VER
-diff -Naur cross-sh/tucana-mingw.patch cross-sh-tucana/tucana-mingw.patch
---- cross-sh/tucana-mingw.patch	2022-09-11 12:32:55.241638766 -0400
-+++ cross-sh-tucana/tucana-mingw.patch	1969-12-31 19:00:00.000000000 -0500
-@@ -1,272 +0,0 @@
--diff -Naur cross-sh/build_toolchain.sh cross-sh-tucana-mingw/build_toolchain.sh
----- cross-sh/build_toolchain.sh	2022-09-10 16:43:58.947665565 -0400
--+++ cross-sh-tucana-mingw/build_toolchain.sh	2022-09-10 16:16:58.541999300 -0400
--@@ -14,36 +14,14 @@
-- echo "Building Binutils..."
-- bash toolchain_binutils.sh &> /dev/null
-- error_check "$?"
--+echo "Building mingw headers"
--+bash toolchain_mingw_headers.sh &> /dev/null
-- echo "Building GCC Stage 1..."
-- bash toolchain_gcc_static.sh &> /dev/null
-- error_check "$?"
---echo "Copying the Linux API Headers..."
---bash toolchain_linux_headers.sh &> /dev/null
---error_check "$?"
---if [[ $LIBC == GLIBC ]]
---then
---   echo "Building GLIBC"
---   bash toolchain_glibc.sh &> /dev/null
---   error_check "$?"
---elif [[ $LIBC == MUSL ]]
---then
---   echo "Building Musl"
---   bash toolchain_musl.sh &> /dev/null
---   error_check "$?"
---elif [[ $LIBC == PICOLIBC ]]
---then
---   bash toolchain_picolibc &> /dev/null
---   error_check "$?"
---elif [[ $LIBC == NEWLIB ]]
---then
---    bash toolchain_newlib.sh &> /dev/null
---    error_check "$?"
---else 
---	echo "LIBC Variable is invalid check your toolchain.conf"
---fi
---
---
--+echo "Building mingw"
--+bash toolchain_mingw.sh &> /dev/null
-- echo "Building the final stage of GCC..."
-- bash toolchain_gcc_final.sh &> /dev/null
-- error_check "$?"
---echo "All Done, remember to add $LOCATION/usr/bin to your path"
--+echo "Run package.sh"
--diff -Naur cross-sh/package.sh cross-sh-tucana-mingw/package.sh
----- cross-sh/package.sh	2022-09-10 16:44:07.198797871 -0400
--+++ cross-sh-tucana-mingw/package.sh	2022-09-10 16:49:25.191834990 -0400
--@@ -7,5 +7,5 @@
-- tar -cvzpf $TARGET_CROSS-gcc.tar.xz $TARGET_CROSS-gcc
-- tar -cvzpf $TARGET_CROSS-glibc.tar.xz $TARGET_CROSS-glibc
-- tar -cvpzf $TARGET_CROSS-binutils.tar.xz $TARGET_CROSS-binutils
---tar -cvzpf $TARGET_CROSS-linux-api-headers.tar.xz $TARGET_CROSS-linux-api-headers
--+tar -cvpzf $TARGET_CROSS-mingw.tar.xz $TARGET_CROSS-mingw
-- mv $TARGET_CROSS*.tar.xz /finished
--diff -Naur cross-sh/test.c cross-sh-tucana-mingw/test.c
----- cross-sh/test.c	1969-12-31 19:00:00.000000000 -0500
--+++ cross-sh-tucana-mingw/test.c	2022-09-10 16:02:36.283266709 -0400
--@@ -0,0 +1,7 @@
--+#include <stdio.h>
--+
--+// Test your new compiler!
--+int main() {
--+  printf("This is a test");
--+  return 0;
--+}
--diff -Naur cross-sh/toolchain.conf cross-sh-tucana-mingw/toolchain.conf
----- cross-sh/toolchain.conf	2022-09-10 16:44:07.198797871 -0400
--+++ cross-sh-tucana-mingw/toolchain.conf	2022-09-10 16:09:58.026812805 -0400
--@@ -7,24 +7,20 @@
-- SOURCES_DIR=/blfs/builds
-- START_DIR=$(pwd)
-- BUILD_DIR=/blfs/builds
---TARGET_CROSS=aarch64-linux-gnu
--+TARGET_CROSS=x86_64-w64-mingw32
-- LOCATION=/
-- HOST=x86_64-linux-gnu
-- PATH=$LOCATION/usr/bin:$PATH
-- JOBS=$(nproc)
---# Select your libc here don't forget to set the version below
---# Available options are GLIBC, NEWLIB, MUSL or PICOLIBC  if you want java compatiablity choose glibc otherwise it is reccommended to choose musl
---LIBC=GLIBC
--+
--+# DO NOT CHANGE, THIS BUILD HAS BEEN PATCHED FOR MINGW ONLY!!!
--+LIBC=MINGW
-- 
-- 
---# For the kernel, check here for what to put https://github.com/torvalds/linux/tree/master/arch.  Leave it blank for host kernel
---ARCH=arm64
-- 
-- # Package Versions
-- LD_VER=2.39
-- CC_VER=12.2.0
---KERNEL_VER=5.19.2
---GLIBC_VER=2.36
-- 
-- # Other options for libc, select which one you want above
-- # https://www.musl-libc.org/
--diff -Naur cross-sh/toolchain_gcc_final.sh cross-sh-tucana-mingw/toolchain_gcc_final.sh
----- cross-sh/toolchain_gcc_final.sh	2022-09-10 16:44:07.198797871 -0400
--+++ cross-sh-tucana-mingw/toolchain_gcc_final.sh	2022-09-10 16:14:50.364116345 -0400
--@@ -25,9 +25,10 @@
-- mkdir build
-- cd build
-- 
---../configure --prefix=/usr --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS --disable-werror --with-sysroot=/usr/$TARGET_CROSS --with-build-sysroot=/usr/$TARGET_CROSS --with-local-prefix=/usr/$TARGET_CROSS --with-system-zlib
--+../configure --prefix=/usr --disable-shared --disable-threads --enable-languages=c,c++ --disable-multilib --target=x86_64-w64-mingw32 --with-sysroot=/usr/x86_64-w64-mingw32 --disable-libstdcxx --disable-libatomic
-- 
---make STAGE1_CFLAGS='-Os' -j$(nproc)
--+
--+make -j$(nproc)
-- make DESTDIR=$LOCATION install
-- make DESTDIR=/pkgs/$TARGET_CROSS-$pkg install
-- 
--diff -Naur cross-sh/toolchain_gcc_static.sh cross-sh-tucana-mingw/toolchain_gcc_static.sh
----- cross-sh/toolchain_gcc_static.sh	2022-09-10 16:44:07.198797871 -0400
--+++ cross-sh-tucana-mingw/toolchain_gcc_static.sh	2022-09-10 16:21:27.979952369 -0400
--@@ -22,11 +22,11 @@
-- mkdir build
-- cd build
-- 
---../configure --prefix=/usr --disable-threads --disable-shared --with-newlib --without-headers --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS
--+../configure --prefix=/usr --disable-threads --disable-shared --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS
-- 
---make all-gcc all-target-libgcc -j$JOBS
--+make all-gcc -j$JOBS
-- 
---PATH=$LOCATION/usr/bin:$PATH make DESTDIR=$LOCATION install-gcc install-target-libgcc
--+make install-gcc
-- 
-- # Delete the old files
-- cd $BUILD_DIR
--diff -Naur cross-sh/toolchain_glibc.sh cross-sh-tucana-mingw/toolchain_glibc.sh
----- cross-sh/toolchain_glibc.sh	2022-09-10 16:44:07.198797871 -0400
--+++ cross-sh-tucana-mingw/toolchain_glibc.sh	1969-12-31 19:00:00.000000000 -0500
--@@ -1,26 +0,0 @@
---#!/bin/bash
---set -e
---# Source the configuration
---source toolchain.conf
---
---pkg=glibc
---# Untar
---
---cd $BUILD_DIR
---tar -xvf $SOURCES_DIR/$pkg-$GLIBC_VER.tar.xz
---cd $pkg-$GLIBC_VER
---
---# Start the build
---
---mkdir build
---cd build
---
---../configure --prefix=/usr --host=$TARGET_CROSS --with-headers=$LOCATION/usr/$TARGET_CROSS/usr/include
---
---make -j$JOBS
---
---make install_root=/usr/$TARGET_CROSS install
---make install_root=/pkgs/$TARGET_CROSS-$pkg/usr/$TARGET_CROSS install
---# Delete the old files
---cd $BUILD_DIR
---rm -rf $pkg-$GLIBC_VER
--diff -Naur cross-sh/toolchain_linux_headers.sh cross-sh-tucana-mingw/toolchain_linux_headers.sh
----- cross-sh/toolchain_linux_headers.sh	2022-09-10 16:44:07.198797871 -0400
--+++ cross-sh-tucana-mingw/toolchain_linux_headers.sh	1969-12-31 19:00:00.000000000 -0500
--@@ -1,28 +0,0 @@
---#!/bin/bash
---
---# These are usually called linux-api-headers on different distros, just in case you have some trouble with these
---
---# Exit on error (not really needed for this package)
---set -e
---# Source the configuration
---source toolchain.conf
---
---# This is what the tar is called
---pkg=linux
---# Untar
---
---cd $BUILD_DIR
---tar -xvf $SOURCES_DIR/$pkg-$KERNEL_VER.tar.xz
---cd $pkg-$KERNEL_VER
---
---# Start the build
---
---make ARCH=$ARCH headers
---mkdir -p $LOCATION/usr/$TARGET_CROSS/usr/include
---cp -rpv usr/include/* $LOCATION/usr/$TARGET_CROSS/usr/include
---
---mkdir -p /pkgs/$TARGET_CROSS-linux-api-headers/usr/$TARGET_CROSS/usr/include
---cp -rpv usr/include/* /pkgs/$TARGET_CROSS-linux-api-headers/usr/$TARGET_CROSS/usr/include
---# Delete the old files
---cd $BUILD_DIR
---rm -rf $pkg-$KERNEL_VER
--diff -Naur cross-sh/toolchain_mingw_headers.sh cross-sh-tucana-mingw/toolchain_mingw_headers.sh
----- cross-sh/toolchain_mingw_headers.sh	1969-12-31 19:00:00.000000000 -0500
--+++ cross-sh-tucana-mingw/toolchain_mingw_headers.sh	2022-09-10 16:11:18.243995246 -0400
--@@ -0,0 +1,24 @@
--+#!/bin/bash
--+set -e
--+# Source the configuration
--+source toolchain.conf
--+# For Build System Only
--+pkg=mingw
--+# Untar
--+
--+cd $BUILD_DIR
--+tar -xvf $SOURCES_DIR/mingw-w64-v10.0.0.tar.bz2
--+cd mingw-w64-v10.0.0
--+
--+# Start the build
--+
--+cd mingw-w64-headers
--+
--+./configure --prefix=/usr/$TARGET_CROSS 
--+
--+make -j$JOBS
--+
--+make install
--+# Delete the old files
--+cd $BUILD_DIR
--+rm -rf mingw-w64-v10.0.0
--diff -Naur cross-sh/toolchain_mingw.sh cross-sh-tucana-mingw/toolchain_mingw.sh
----- cross-sh/toolchain_mingw.sh	1969-12-31 19:00:00.000000000 -0500
--+++ cross-sh-tucana-mingw/toolchain_mingw.sh	2022-09-10 16:51:02.665360587 -0400
--@@ -0,0 +1,34 @@
--+#!/bin/bash
--+set -e
--+# Source the configuration
--+source toolchain.conf
--+# For Build System Only
--+pkg=mingw
--+# Untar
--+
--+cd $BUILD_DIR
--+tar -xvf $SOURCES_DIR/mingw-w64-v10.0.0.tar.bz2
--+cd mingw-w64-v10.0.0
--+
--+# Start the build
--+
--+cd mingw-w64-headers
--+
--+./configure --prefix=/usr/$TARGET_CROSS 
--+
--+make
--+make DESTDIR=/pgks/$TARGET_CROSS-mingw install
--+make install
--+
--+cd ..
--+
--+./configure --enable-experimental --prefix=/usr/x86_64-w64-mingw32 --host=x86_64-w64-mingw32
--+# For some reason mingw doesn't support multiple jobs
--+make
--+
--+make DESTDIR=/pkgs/$TARGET_CROSS-mingw install
--+make install
--+
--+# Delete the old files
--+cd $BUILD_DIR
--+rm -rf mingw-w64-v10.0.0
--diff -Naur cross-sh/wget cross-sh-tucana-mingw/wget
----- cross-sh/wget	2022-09-10 16:44:07.198797871 -0400
--+++ cross-sh-tucana-mingw/wget	2022-09-10 16:04:36.339053240 -0400
--@@ -1,7 +1,3 @@
-- https://ftp.gnu.org/gnu/gcc/gcc-12.2.0/gcc-12.2.0.tar.xz
---https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.19.2.tar.xz
-- https://ftp.gnu.org/gnu/binutils/binutils-2.39.tar.xz
---https://ftp.gnu.org/gnu/glibc/glibc-2.36.tar.xz
---https://ftp.gnu.org/gnu/gmp/gmp-6.2.1.tar.xz
---https://ftp.gnu.org/gnu/mpc/mpc-1.2.1.tar.gz
---https://ftp.gnu.org/gnu/mpfr/mpfr-4.1.0.tar.xz
--+https://sourceforge.net/projects/mingw-w64/files/mingw-w64/mingw-w64-release/mingw-w64-v10.0.0.tar.bz2/download
-diff -Naur cross-sh/tucana.patch cross-sh-tucana/tucana.patch
---- cross-sh/tucana.patch	2022-09-11 12:32:55.241638766 -0400
-+++ cross-sh-tucana/tucana.patch	1969-12-31 19:00:00.000000000 -0500
-@@ -1,258 +0,0 @@
--diff -Naur cross-sh/package.sh cross-sh-tucana/package.sh
----- cross-sh/package.sh	1969-12-31 19:00:00.000000000 -0500
--+++ cross-sh-tucana/package.sh	2022-09-10 13:45:44.260142495 -0400
--@@ -0,0 +1,11 @@
--+#!/bin/bash
--+source toolchain.conf
--+mkdir -p /pkgs/$TARGET_CROSS/var/cache/mercury/meta-pkgs
--+echo "$TARGET_CROSS-binutils $TARGET_CROSS-gcc $TARGET_CROSS-glibc $TARGET_CROSS-linux-api-headers" > /pkgs/$TARGET_CROSS/depend
--+echo "$TARGET_CROSS-binutils $TARGET_CROSS-gcc $TARGET_CROSS-glibc $TARGET_CROSS-linux-api-headers" > /pkgs/$TARGET_CROSS/var/cache/mercury/meta-pkgs/$TARGET_CROSS
--+cd /pkgs
--+tar -cvzpf $TARGET_CROSS-gcc.tar.xz $TARGET_CROSS-gcc
--+tar -cvzpf $TARGET_CROSS-glibc.tar.xz $TARGET_CROSS-glibc
--+tar -cvpzf $TARGET_CROSS-binutils.tar.xz $TARGET_CROSS-binutils
--+tar -cvzpf $TARGET_CROSS-linux-api-headers.tar.xz $TARGET_CROSS-linux-api-headers
--+mv $TARGET_CROSS*.tar.xz /finished
--diff -Naur cross-sh/toolchain_binutils.sh cross-sh-tucana/toolchain_binutils.sh
----- cross-sh/toolchain_binutils.sh	2022-09-09 23:18:18.582469450 -0400
--+++ cross-sh-tucana/toolchain_binutils.sh	2022-09-09 23:23:11.419751716 -0400
--@@ -15,12 +15,12 @@
-- mkdir build
-- cd build
-- 
---../configure --prefix=/usr --with-sysroot=$LOCATION --disable-nls --disable-werror --target=$TARGET_CROSS
--+../configure --prefix=/usr --with-sysroot=$LOCATION/$TARGET_CROSS --disable-nls --disable-werror --target=$TARGET_CROSS
-- 
-- make -j$JOBS
-- 
-- make DESTDIR=$LOCATION install
---
--+make DESTDIR=/pkgs/$TARGET_CROSS-$pkg install
-- # Delete the old files
-- cd $BUILD_DIR
-- rm -rf $pkg-$LD_VER
--diff -Naur cross-sh/toolchain.conf cross-sh-tucana/toolchain.conf
----- cross-sh/toolchain.conf	2022-09-09 23:18:18.582469450 -0400
--+++ cross-sh-tucana/toolchain.conf	2022-09-10 13:47:35.030891768 -0400
--@@ -1,32 +1,34 @@
-- #!/bin/bash
-- 
---# Put your prefences here
--+# This is the config for building the Tucana Packages
--+# If you want to use this to build for another distro,
--+# Check out cross-sh, it is distro agnostic
-- 
---SOURCES_DIR=$(pwd)/sources
--+SOURCES_DIR=/blfs/builds
-- START_DIR=$(pwd)
---BUILD_DIR=$(pwd)/build
---TARGET_CROSS=x86_64-linux-musl
---LOCATION=/opt/cross
--+BUILD_DIR=/blfs/builds
--+TARGET_CROSS=aarch64-linux-gnu
--+LOCATION=/
-- HOST=x86_64-linux-gnu
-- PATH=$LOCATION/usr/bin:$PATH
---JOBS=20
--+JOBS=$(nproc)
-- # Select your libc here don't forget to set the version below
-- # Available options are GLIBC, NEWLIB, MUSL or PICOLIBC  if you want java compatiablity choose glibc otherwise it is reccommended to choose musl
---LIBC=MUSL
--+LIBC=GLIBC
-- 
-- 
-- # For the kernel, check here for what to put https://github.com/torvalds/linux/tree/master/arch.  Leave it blank for host kernel
---ARCH=x86_64
--+ARCH=arm64
-- 
-- # Package Versions
---LD_VER=2.38
---CC_VER=12.1.0
---KERNEL_VER=5.18.10
---GLIBC_VER=2.35
--+LD_VER=2.39
--+CC_VER=12.2.0
--+KERNEL_VER=5.19.2
--+GLIBC_VER=2.36
-- 
-- # Other options for libc, select which one you want above
-- # https://www.musl-libc.org/
---MUSL_VER=1.2.3
--+#MUSL_VER=1.2.3
-- # https://sourceware.org/newlib/
-- #NEWLIB_VERSION
-- # https://github.com/picolibc/picolibc
--diff -Naur cross-sh/toolchain_gcc_final.sh cross-sh-tucana/toolchain_gcc_final.sh
----- cross-sh/toolchain_gcc_final.sh	2022-09-09 23:18:18.582469450 -0400
--+++ cross-sh-tucana/toolchain_gcc_final.sh	2022-09-10 11:54:38.298717324 -0400
--@@ -25,11 +25,11 @@
-- mkdir build
-- cd build
-- 
---../configure --prefix=/usr --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS --with-sysroot=$LOCATION --disable-werror 
--+../configure --prefix=/usr --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS --disable-werror --with-sysroot=/usr/$TARGET_CROSS --with-build-sysroot=/usr/$TARGET_CROSS --with-local-prefix=/usr/$TARGET_CROSS --with-system-zlib
-- 
---make -j$JOBS
---
---sudo make PATH=$LOCATION/usr/bin:$PATH DESTDIR=$LOCATION install
--+make STAGE1_CFLAGS='-Os' -j$(nproc)
--+make DESTDIR=$LOCATION install
--+make DESTDIR=/pkgs/$TARGET_CROSS-$pkg install
-- 
-- # Delete the old files
-- cd $BUILD_DIR
--diff -Naur cross-sh/toolchain_gcc_static.sh cross-sh-tucana/toolchain_gcc_static.sh
----- cross-sh/toolchain_gcc_static.sh	2022-09-09 23:18:18.582469450 -0400
--+++ cross-sh-tucana/toolchain_gcc_static.sh	2022-09-09 22:10:42.179997269 -0400
--@@ -2,7 +2,7 @@
-- set -e
-- # Source the configuration
-- source toolchain.conf
---
--+# For build system only
-- pkg=gcc
-- # Untar
-- 
--diff -Naur cross-sh/toolchain_glibc.sh cross-sh-tucana/toolchain_glibc.sh
----- cross-sh/toolchain_glibc.sh	2022-09-09 23:18:18.582469450 -0400
--+++ cross-sh-tucana/toolchain_glibc.sh	2022-09-09 23:23:28.254998410 -0400
--@@ -15,12 +15,12 @@
-- mkdir build
-- cd build
-- 
---../configure --prefix=/usr --host=$TARGET_CROSS --with-headers=$LOCATION/usr/include
--+../configure --prefix=/usr --host=$TARGET_CROSS --with-headers=$LOCATION/usr/$TARGET_CROSS/usr/include
-- 
-- make -j$JOBS
-- 
---make DESTDIR=$LOCATION install
---
--+make install_root=/usr/$TARGET_CROSS install
--+make install_root=/pkgs/$TARGET_CROSS-$pkg/usr/$TARGET_CROSS install
-- # Delete the old files
-- cd $BUILD_DIR
-- rm -rf $pkg-$GLIBC_VER
--diff -Naur cross-sh/toolchain_linux_headers.sh cross-sh-tucana/toolchain_linux_headers.sh
----- cross-sh/toolchain_linux_headers.sh	2022-09-09 23:18:18.582469450 -0400
--+++ cross-sh-tucana/toolchain_linux_headers.sh	2022-09-09 22:26:50.931741271 -0400
--@@ -18,8 +18,11 @@
-- # Start the build
-- 
-- make ARCH=$ARCH headers
---cp -rpv usr/include/* $LOCATION/usr/include
--+mkdir -p $LOCATION/usr/$TARGET_CROSS/usr/include
--+cp -rpv usr/include/* $LOCATION/usr/$TARGET_CROSS/usr/include
-- 
--+mkdir -p /pkgs/$TARGET_CROSS-linux-api-headers/usr/$TARGET_CROSS/usr/include
--+cp -rpv usr/include/* /pkgs/$TARGET_CROSS-linux-api-headers/usr/$TARGET_CROSS/usr/include
-- # Delete the old files
-- cd $BUILD_DIR
-- rm -rf $pkg-$KERNEL_VER
--diff -Naur cross-sh/toolchain_musl.sh cross-sh-tucana/toolchain_musl.sh
----- cross-sh/toolchain_musl.sh	2022-09-09 23:18:18.582469450 -0400
--+++ cross-sh-tucana/toolchain_musl.sh	1969-12-31 19:00:00.000000000 -0500
--@@ -1,26 +0,0 @@
---#!/bin/bash
---set -e
---# Source the configuration
---source toolchain.conf
---
---pkg=musl
---# Untar
---
---cd $BUILD_DIR
---tar -xvf $SOURCES_DIR/$pkg-$MUSL_VER.tar.gz
---cd $pkg-$MUSL_VER
---
---# Start the build
---
---mkdir build
---cd build
---
---../configure --prefix=/usr --host=$TARGET_CROSS 
---
---make -j$JOBS
---
---make DESTDIR=$LOCATION install
---
---# Delete the old files
---cd $BUILD_DIR
---rm -rf $pkg-$MUSL_VER
--diff -Naur cross-sh/toolchain_newlib.sh cross-sh-tucana/toolchain_newlib.sh
----- cross-sh/toolchain_newlib.sh	2022-09-09 23:18:18.582469450 -0400
--+++ cross-sh-tucana/toolchain_newlib.sh	1969-12-31 19:00:00.000000000 -0500
--@@ -1,26 +0,0 @@
---#!/bin/bash
---set -e
---# Source the configuration
---source toolchain.conf
---
---pkg=newlib
---# Untar
---
---cd $BUILD_DIR
---tar -xvf $SOURCES_DIR/$pkg-$NEWLIB_VER.tar.xz
---cd $pkg-$NEWLIB_VER
---
---# Start the build
---
---mkdir build
---cd build
---
---../configure --prefix=/usr --host=$TARGET_CROSS --with-headers=$LOCATION/include
---
---make -j$JOBS
---
---make DESTDIR=$LOCATION install
---
---# Delete the old files
---cd $BUILD_DIR
---rm -rf $pkg-$NEWLIB_VER
--diff -Naur cross-sh/toolchain_picolibc.sh cross-sh-tucana/toolchain_picolibc.sh
----- cross-sh/toolchain_picolibc.sh	2022-09-09 23:18:18.582469450 -0400
--+++ cross-sh-tucana/toolchain_picolibc.sh	1969-12-31 19:00:00.000000000 -0500
--@@ -1,26 +0,0 @@
---#!/bin/bash
---set -e
---# Source the configuration
---source toolchain.conf
---
---pkg=picolibc
---# Untar
---
---cd $BUILD_DIR
---tar -xvf $SOURCES_DIR/$pkg-$PICOLIBC_VER.tar.xz
---cd $pkg-$PICOLIBC_VER
---
---# Start the build
---
---mkdir build
---cd build
---
---../configure --prefix=$LOCATION/usr --host=$TARGET_CROSS --with-headers=$LOCATION/include
---
---make -j$JOBS
---
---make install
---
---# Delete the old files
---cd $BUILD_DIR
---rm -rf $pkg-$PICOLIBC_VER
--diff -Naur cross-sh/wget cross-sh-tucana/wget
----- cross-sh/wget	2022-09-09 23:18:18.582469450 -0400
--+++ cross-sh-tucana/wget	2022-09-09 22:10:42.179997269 -0400
--@@ -1,10 +1,7 @@
---https://ftp.gnu.org/gnu/gcc/gcc-12.1.0/gcc-12.1.0.tar.xz
---https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.18.10.tar.xz
---https://ftp.gnu.org/gnu/binutils/binutils-2.38.tar.xz
---https://ftp.gnu.org/gnu/glibc/glibc-2.35.tar.xz
--+https://ftp.gnu.org/gnu/gcc/gcc-12.2.0/gcc-12.2.0.tar.xz
--+https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.19.2.tar.xz
--+https://ftp.gnu.org/gnu/binutils/binutils-2.39.tar.xz
--+https://ftp.gnu.org/gnu/glibc/glibc-2.36.tar.xz
-- https://ftp.gnu.org/gnu/gmp/gmp-6.2.1.tar.xz
-- https://ftp.gnu.org/gnu/mpc/mpc-1.2.1.tar.gz
-- https://ftp.gnu.org/gnu/mpfr/mpfr-4.1.0.tar.xz
---https://musl.libc.org/releases/musl-1.2.3.tar.gz
---ftp://sourceware.org/pub/newlib/newlib-4.2.0.20211231.tar.gz
---https://github.com/picolibc/picolibc/releases/download/1.7.7/picolibc-1.7.7.tar.xz
 diff -Naur cross-sh/wget cross-sh-tucana/wget
 --- cross-sh/wget	2022-09-11 12:32:55.241638766 -0400
 +++ cross-sh-tucana/wget	2022-09-11 12:31:53.778592032 -0400
