@@ -1,6 +1,6 @@
-diff -Naur cross-sh/build_toolchain.sh cross-sh-tucana-mingw/build_toolchain.sh
---- cross-sh/build_toolchain.sh	2022-09-10 16:43:58.947665565 -0400
-+++ cross-sh-tucana-mingw/build_toolchain.sh	2022-09-10 16:16:58.541999300 -0400
+diff -Naur cross-sh/build_toolchain.sh cross-sh-mingw/build_toolchain.sh
+--- cross-sh/build_toolchain.sh	2022-09-11 13:14:23.287698839 -0400
++++ cross-sh-mingw/build_toolchain.sh	2022-09-11 13:13:05.812505863 -0400
 @@ -14,36 +14,14 @@
  echo "Building Binutils..."
  bash toolchain_binutils.sh &> /dev/null
@@ -43,9 +43,9 @@ diff -Naur cross-sh/build_toolchain.sh cross-sh-tucana-mingw/build_toolchain.sh
  error_check "$?"
 -echo "All Done, remember to add $LOCATION/usr/bin to your path"
 +echo "Run package.sh"
-diff -Naur cross-sh/package.sh cross-sh-tucana-mingw/package.sh
---- cross-sh/package.sh	2022-09-10 16:44:07.198797871 -0400
-+++ cross-sh-tucana-mingw/package.sh	2022-09-10 16:49:25.191834990 -0400
+diff -Naur cross-sh/package.sh cross-sh-mingw/package.sh
+--- cross-sh/package.sh	2022-09-11 13:14:47.010064114 -0400
++++ cross-sh-mingw/package.sh	2022-09-11 13:13:05.812505863 -0400
 @@ -7,5 +7,5 @@
  tar -cvzpf $TARGET_CROSS-gcc.tar.xz $TARGET_CROSS-gcc
  tar -cvzpf $TARGET_CROSS-glibc.tar.xz $TARGET_CROSS-glibc
@@ -53,20 +53,9 @@ diff -Naur cross-sh/package.sh cross-sh-tucana-mingw/package.sh
 -tar -cvzpf $TARGET_CROSS-linux-api-headers.tar.xz $TARGET_CROSS-linux-api-headers
 +tar -cvpzf $TARGET_CROSS-mingw.tar.xz $TARGET_CROSS-mingw
  mv $TARGET_CROSS*.tar.xz /finished
-diff -Naur cross-sh/test.c cross-sh-tucana-mingw/test.c
---- cross-sh/test.c	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-tucana-mingw/test.c	2022-09-10 16:02:36.283266709 -0400
-@@ -0,0 +1,7 @@
-+#include <stdio.h>
-+
-+// Test your new compiler!
-+int main() {
-+  printf("This is a test");
-+  return 0;
-+}
-diff -Naur cross-sh/toolchain.conf cross-sh-tucana-mingw/toolchain.conf
---- cross-sh/toolchain.conf	2022-09-10 16:44:07.198797871 -0400
-+++ cross-sh-tucana-mingw/toolchain.conf	2022-09-10 16:09:58.026812805 -0400
+diff -Naur cross-sh/toolchain.conf cross-sh-mingw/toolchain.conf
+--- cross-sh/toolchain.conf	2022-09-11 13:14:47.011064129 -0400
++++ cross-sh-mingw/toolchain.conf	2022-09-11 13:13:05.812505863 -0400
 @@ -7,24 +7,20 @@
  SOURCES_DIR=/blfs/builds
  START_DIR=$(pwd)
@@ -96,25 +85,38 @@ diff -Naur cross-sh/toolchain.conf cross-sh-tucana-mingw/toolchain.conf
  
  # Other options for libc, select which one you want above
  # https://www.musl-libc.org/
-diff -Naur cross-sh/toolchain_gcc_final.sh cross-sh-tucana-mingw/toolchain_gcc_final.sh
---- cross-sh/toolchain_gcc_final.sh	2022-09-10 16:44:07.198797871 -0400
-+++ cross-sh-tucana-mingw/toolchain_gcc_final.sh	2022-09-10 16:14:50.364116345 -0400
-@@ -25,9 +25,10 @@
+diff -Naur cross-sh/toolchain_gcc_final.sh cross-sh-mingw/toolchain_gcc_final.sh
+--- cross-sh/toolchain_gcc_final.sh	2022-09-11 13:15:13.364469911 -0400
++++ cross-sh-mingw/toolchain_gcc_final.sh	2022-09-11 13:15:45.005957112 -0400
+@@ -15,20 +15,17 @@
+ 
+ # Start the build
+ 
+-tar -xf $SOURCES_DIR/mpfr-4.1.0.tar.xz
+-mv -v mpfr-4.1.0 mpfr
+-tar -xf $SOURCES_DIR/gmp-6.2.1.tar.xz
+-mv -v gmp-6.2.1 gmp
+-tar -xf $SOURCES_DIR/mpc-1.2.1.tar.gz
+-mv -v mpc-1.2.1 mpc
+ 
  mkdir build
  cd build
  
--../configure --prefix=/usr --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS --disable-werror --with-sysroot=/usr/$TARGET_CROSS --with-build-sysroot=/usr/$TARGET_CROSS --with-local-prefix=/usr/$TARGET_CROSS --with-system-zlib
+-CFLAGS_FOR_TARGET='-O2' CFLAGS='-O2' ../configure --prefix=/usr --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS --disable-werror --with-sysroot=/usr/$TARGET_CROSS --with-build-sysroot=/usr/$TARGET_CROSS --with-local-prefix=/usr/$TARGET_CROSS --with-system-zlib 
+-make CFLAGS_FOR_TARGET='-O2' CFLAGS='-O2' BOOT_CFLAGS='-O2' -j$(nproc)
 +../configure --prefix=/usr --disable-shared --disable-threads --enable-languages=c,c++ --disable-multilib --target=x86_64-w64-mingw32 --with-sysroot=/usr/x86_64-w64-mingw32 --disable-libstdcxx --disable-libatomic
- 
--make STAGE1_CFLAGS='-Os' -j$(nproc)
++
 +
 +make -j$(nproc)
  make DESTDIR=$LOCATION install
  make DESTDIR=/pkgs/$TARGET_CROSS-$pkg install
++
+ # Thanks arch btw 
+   find /pkgs/$TARGET_CROSS-$pkg/usr/bin/ /pkgs/$TARGET_CROSS-$pkg/usr/libexec/gcc/$TARGET_CROSS/ -type f -and \( -executable \) -exec strip '{}' \;
  
-diff -Naur cross-sh/toolchain_gcc_static.sh cross-sh-tucana-mingw/toolchain_gcc_static.sh
---- cross-sh/toolchain_gcc_static.sh	2022-09-10 16:44:07.198797871 -0400
-+++ cross-sh-tucana-mingw/toolchain_gcc_static.sh	2022-09-10 16:21:27.979952369 -0400
+diff -Naur cross-sh/toolchain_gcc_static.sh cross-sh-mingw/toolchain_gcc_static.sh
+--- cross-sh/toolchain_gcc_static.sh	2022-09-11 13:14:47.011064129 -0400
++++ cross-sh-mingw/toolchain_gcc_static.sh	2022-09-11 13:13:05.812505863 -0400
 @@ -22,11 +22,11 @@
  mkdir build
  cd build
@@ -130,9 +132,9 @@ diff -Naur cross-sh/toolchain_gcc_static.sh cross-sh-tucana-mingw/toolchain_gcc_
  
  # Delete the old files
  cd $BUILD_DIR
-diff -Naur cross-sh/toolchain_glibc.sh cross-sh-tucana-mingw/toolchain_glibc.sh
---- cross-sh/toolchain_glibc.sh	2022-09-10 16:44:07.198797871 -0400
-+++ cross-sh-tucana-mingw/toolchain_glibc.sh	1969-12-31 19:00:00.000000000 -0500
+diff -Naur cross-sh/toolchain_glibc.sh cross-sh-mingw/toolchain_glibc.sh
+--- cross-sh/toolchain_glibc.sh	2022-09-11 13:14:47.011064129 -0400
++++ cross-sh-mingw/toolchain_glibc.sh	1969-12-31 19:00:00.000000000 -0500
 @@ -1,26 +0,0 @@
 -#!/bin/bash
 -set -e
@@ -160,9 +162,9 @@ diff -Naur cross-sh/toolchain_glibc.sh cross-sh-tucana-mingw/toolchain_glibc.sh
 -# Delete the old files
 -cd $BUILD_DIR
 -rm -rf $pkg-$GLIBC_VER
-diff -Naur cross-sh/toolchain_linux_headers.sh cross-sh-tucana-mingw/toolchain_linux_headers.sh
---- cross-sh/toolchain_linux_headers.sh	2022-09-10 16:44:07.198797871 -0400
-+++ cross-sh-tucana-mingw/toolchain_linux_headers.sh	1969-12-31 19:00:00.000000000 -0500
+diff -Naur cross-sh/toolchain_linux_headers.sh cross-sh-mingw/toolchain_linux_headers.sh
+--- cross-sh/toolchain_linux_headers.sh	2022-09-11 13:14:47.011064129 -0400
++++ cross-sh-mingw/toolchain_linux_headers.sh	1969-12-31 19:00:00.000000000 -0500
 @@ -1,28 +0,0 @@
 -#!/bin/bash
 -
@@ -192,9 +194,9 @@ diff -Naur cross-sh/toolchain_linux_headers.sh cross-sh-tucana-mingw/toolchain_l
 -# Delete the old files
 -cd $BUILD_DIR
 -rm -rf $pkg-$KERNEL_VER
-diff -Naur cross-sh/toolchain_mingw_headers.sh cross-sh-tucana-mingw/toolchain_mingw_headers.sh
+diff -Naur cross-sh/toolchain_mingw_headers.sh cross-sh-mingw/toolchain_mingw_headers.sh
 --- cross-sh/toolchain_mingw_headers.sh	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-tucana-mingw/toolchain_mingw_headers.sh	2022-09-10 16:11:18.243995246 -0400
++++ cross-sh-mingw/toolchain_mingw_headers.sh	2022-09-11 13:13:05.812505863 -0400
 @@ -0,0 +1,24 @@
 +#!/bin/bash
 +set -e
@@ -220,9 +222,9 @@ diff -Naur cross-sh/toolchain_mingw_headers.sh cross-sh-tucana-mingw/toolchain_m
 +# Delete the old files
 +cd $BUILD_DIR
 +rm -rf mingw-w64-v10.0.0
-diff -Naur cross-sh/toolchain_mingw.sh cross-sh-tucana-mingw/toolchain_mingw.sh
+diff -Naur cross-sh/toolchain_mingw.sh cross-sh-mingw/toolchain_mingw.sh
 --- cross-sh/toolchain_mingw.sh	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-tucana-mingw/toolchain_mingw.sh	2022-09-10 16:51:02.665360587 -0400
++++ cross-sh-mingw/toolchain_mingw.sh	2022-09-11 13:13:45.713120265 -0400
 @@ -0,0 +1,34 @@
 +#!/bin/bash
 +set -e
@@ -243,7 +245,7 @@ diff -Naur cross-sh/toolchain_mingw.sh cross-sh-tucana-mingw/toolchain_mingw.sh
 +./configure --prefix=/usr/$TARGET_CROSS 
 +
 +make
-+make DESTDIR=/pgks/$TARGET_CROSS-mingw install
++make DESTDIR=/pkgs/$TARGET_CROSS-mingw install
 +make install
 +
 +cd ..
@@ -258,9 +260,9 @@ diff -Naur cross-sh/toolchain_mingw.sh cross-sh-tucana-mingw/toolchain_mingw.sh
 +# Delete the old files
 +cd $BUILD_DIR
 +rm -rf mingw-w64-v10.0.0
-diff -Naur cross-sh/wget cross-sh-tucana-mingw/wget
---- cross-sh/wget	2022-09-10 16:44:07.198797871 -0400
-+++ cross-sh-tucana-mingw/wget	2022-09-10 16:04:36.339053240 -0400
+diff -Naur cross-sh/wget cross-sh-mingw/wget
+--- cross-sh/wget	2022-09-11 13:14:47.011064129 -0400
++++ cross-sh-mingw/wget	2022-09-11 13:13:05.812505863 -0400
 @@ -1,7 +1,3 @@
  https://ftp.gnu.org/gnu/gcc/gcc-12.2.0/gcc-12.2.0.tar.xz
 -https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.19.2.tar.xz
