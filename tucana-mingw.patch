@@ -163,7 +163,7 @@ diff -Naur cross-sh/toolchain_glibc.sh cross-sh-mingw/toolchain_glibc.sh
 -mkdir build
 -cd build
 -
--../configure --prefix=/usr --host=$TARGET_CROSS --with-headers=$LOCATION/usr/$TARGET_CROSS/usr/include
+-../configure --prefix=/usr --host=$TARGET_CROSS --with-headers=$LOCATION/usr/$TARGET_CROSS/usr/include libc_cv_slibdir=/usr/lib
 -
 -make -j$JOBS
 -
