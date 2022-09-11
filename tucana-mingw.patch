@@ -104,7 +104,7 @@ diff -Naur cross-sh/toolchain_gcc_final.sh cross-sh-mingw/toolchain_gcc_final.sh
  
 -CFLAGS_FOR_TARGET='-O2' CFLAGS='-O2' ../configure --prefix=/usr --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS --disable-werror --with-sysroot=/usr/$TARGET_CROSS --with-build-sysroot=/usr/$TARGET_CROSS --with-local-prefix=/usr/$TARGET_CROSS --with-system-zlib 
 -make CFLAGS_FOR_TARGET='-O2' CFLAGS='-O2' BOOT_CFLAGS='-O2' -j$(nproc)
-+../configure --prefix=/usr --disable-shared --disable-threads --enable-languages=c,c++ --disable-multilib --target=x86_64-w64-mingw32 --with-sysroot=/usr/x86_64-w64-mingw32 --disable-libstdcxx --disable-libatomic
++../configure --prefix=/usr --disable-shared --disable-threads --enable-languages=c,c++ --disable-multilib --target=x86_64-w64-mingw32 --with-build-sysroot=/usr/x86_64-w64-mingw32 --disable-libstdcxx --disable-libatomic
 +
 +
 +make -j$(nproc)
