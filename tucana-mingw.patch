@@ -115,7 +115,7 @@ diff -Naur cross-sh/toolchain_gcc_final.sh cross-sh-mingw/toolchain_gcc_final.sh
 -# Thanks arch btw 
 -  find /pkgs/$TARGET_CROSS-$pkg/usr/bin/ /pkgs/$TARGET_CROSS-$pkg/usr/libexec/gcc/$TARGET_CROSS/ -type f -and \( -executable \) -exec strip '{}' \;
 -# Strip the target libs
--find /pkgs/$TARGET_CROSS-$pkg/usr/$TARGET_CROSS/lib64 -type f -executable -name '*.so*' -exec $TARGET_CROSS-strip {} \;
+-find /pkgs/$TARGET_CROSS-$pkg/usr/$TARGET_CROSS/lib* -type f -executable -name '*.so*' -exec $TARGET_CROSS-strip {} \;
 -
 +find /pkgs/$TARGET_CROSS-$pkg/usr/bin -type f -and \( -executable \) -exec strip '{}' \;
 +strip /pkgs/$TARGET_CROSS-$pkg/usr/libexec/gcc/$TARGET_CROSS/12.2.0/{cc1*,collect2,lto*}
