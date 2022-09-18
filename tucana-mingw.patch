@@ -1,6 +1,6 @@
 diff -Naur cross-sh/build_toolchain.sh cross-sh-mingw/build_toolchain.sh
---- cross-sh/build_toolchain.sh	2022-09-18 12:43:32.942056370 -0400
-+++ cross-sh-mingw/build_toolchain.sh	2022-09-18 12:17:44.162776289 -0400
+--- cross-sh/build_toolchain.sh	2022-09-18 12:49:09.655292005 -0400
++++ cross-sh-mingw/build_toolchain.sh	2022-09-18 12:48:51.019197159 -0400
 @@ -14,36 +14,14 @@
  echo "Building Binutils..."
  bash toolchain_binutils.sh &> /dev/null
@@ -43,1198 +43,9 @@ diff -Naur cross-sh/build_toolchain.sh cross-sh-mingw/build_toolchain.sh
  error_check "$?"
 -echo "All Done, remember to add $LOCATION/usr/bin to your path"
 +echo "Run package.sh"
-diff -Naur cross-sh/.git/config cross-sh-mingw/.git/config
---- cross-sh/.git/config	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/config	2022-09-18 12:17:36.464767226 -0400
-@@ -0,0 +1,11 @@
-+[core]
-+	repositoryformatversion = 0
-+	filemode = true
-+	bare = false
-+	logallrefupdates = true
-+[remote "origin"]
-+	url = https://github.com/xXTeraXx/cross-sh.git
-+	fetch = +refs/heads/*:refs/remotes/origin/*
-+[branch "main"]
-+	remote = origin
-+	merge = refs/heads/main
-diff -Naur cross-sh/.git/description cross-sh-mingw/.git/description
---- cross-sh/.git/description	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/description	2022-09-18 12:17:36.230766954 -0400
-@@ -0,0 +1 @@
-+Unnamed repository; edit this file 'description' to name the repository.
-diff -Naur cross-sh/.git/HEAD cross-sh-mingw/.git/HEAD
---- cross-sh/.git/HEAD	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/HEAD	2022-09-18 12:17:36.464767226 -0400
-@@ -0,0 +1 @@
-+ref: refs/heads/main
-diff -Naur cross-sh/.git/hooks/applypatch-msg.sample cross-sh-mingw/.git/hooks/applypatch-msg.sample
---- cross-sh/.git/hooks/applypatch-msg.sample	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/hooks/applypatch-msg.sample	2022-09-18 12:17:36.231766955 -0400
-@@ -0,0 +1,15 @@
-+#!/bin/sh
-+#
-+# An example hook script to check the commit log message taken by
-+# applypatch from an e-mail message.
-+#
-+# The hook should exit with non-zero status after issuing an
-+# appropriate message if it wants to stop the commit.  The hook is
-+# allowed to edit the commit message file.
-+#
-+# To enable this hook, rename this file to "applypatch-msg".
-+
-+. git-sh-setup
-+commitmsg="$(git rev-parse --git-path hooks/commit-msg)"
-+test -x "$commitmsg" && exec "$commitmsg" ${1+"$@"}
-+:
-diff -Naur cross-sh/.git/hooks/commit-msg.sample cross-sh-mingw/.git/hooks/commit-msg.sample
---- cross-sh/.git/hooks/commit-msg.sample	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/hooks/commit-msg.sample	2022-09-18 12:17:36.231766955 -0400
-@@ -0,0 +1,24 @@
-+#!/bin/sh
-+#
-+# An example hook script to check the commit log message.
-+# Called by "git commit" with one argument, the name of the file
-+# that has the commit message.  The hook should exit with non-zero
-+# status after issuing an appropriate message if it wants to stop the
-+# commit.  The hook is allowed to edit the commit message file.
-+#
-+# To enable this hook, rename this file to "commit-msg".
-+
-+# Uncomment the below to add a Signed-off-by line to the message.
-+# Doing this in a hook is a bad idea in general, but the prepare-commit-msg
-+# hook is more suited to it.
-+#
-+# SOB=$(git var GIT_AUTHOR_IDENT | sed -n 's/^\(.*>\).*$/Signed-off-by: \1/p')
-+# grep -qs "^$SOB" "$1" || echo "$SOB" >> "$1"
-+
-+# This example catches duplicate Signed-off-by lines.
-+
-+test "" = "$(grep '^Signed-off-by: ' "$1" |
-+	 sort | uniq -c | sed -e '/^[ 	]*1[ 	]/d')" || {
-+	echo >&2 Duplicate Signed-off-by lines.
-+	exit 1
-+}
-diff -Naur cross-sh/.git/hooks/fsmonitor-watchman.sample cross-sh-mingw/.git/hooks/fsmonitor-watchman.sample
---- cross-sh/.git/hooks/fsmonitor-watchman.sample	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/hooks/fsmonitor-watchman.sample	2022-09-18 12:17:36.231766955 -0400
-@@ -0,0 +1,173 @@
-+#!/usr/bin/perl
-+
-+use strict;
-+use warnings;
-+use IPC::Open2;
-+
-+# An example hook script to integrate Watchman
-+# (https://facebook.github.io/watchman/) with git to speed up detecting
-+# new and modified files.
-+#
-+# The hook is passed a version (currently 2) and last update token
-+# formatted as a string and outputs to stdout a new update token and
-+# all files that have been modified since the update token. Paths must
-+# be relative to the root of the working tree and separated by a single NUL.
-+#
-+# To enable this hook, rename this file to "query-watchman" and set
-+# 'git config core.fsmonitor .git/hooks/query-watchman'
-+#
-+my ($version, $last_update_token) = @ARGV;
-+
-+# Uncomment for debugging
-+# print STDERR "$0 $version $last_update_token\n";
-+
-+# Check the hook interface version
-+if ($version ne 2) {
-+	die "Unsupported query-fsmonitor hook version '$version'.\n" .
-+	    "Falling back to scanning...\n";
-+}
-+
-+my $git_work_tree = get_working_dir();
-+
-+my $retry = 1;
-+
-+my $json_pkg;
-+eval {
-+	require JSON::XS;
-+	$json_pkg = "JSON::XS";
-+	1;
-+} or do {
-+	require JSON::PP;
-+	$json_pkg = "JSON::PP";
-+};
-+
-+launch_watchman();
-+
-+sub launch_watchman {
-+	my $o = watchman_query();
-+	if (is_work_tree_watched($o)) {
-+		output_result($o->{clock}, @{$o->{files}});
-+	}
-+}
-+
-+sub output_result {
-+	my ($clockid, @files) = @_;
-+
-+	# Uncomment for debugging watchman output
-+	# open (my $fh, ">", ".git/watchman-output.out");
-+	# binmode $fh, ":utf8";
-+	# print $fh "$clockid\n@files\n";
-+	# close $fh;
-+
-+	binmode STDOUT, ":utf8";
-+	print $clockid;
-+	print "\0";
-+	local $, = "\0";
-+	print @files;
-+}
-+
-+sub watchman_clock {
-+	my $response = qx/watchman clock "$git_work_tree"/;
-+	die "Failed to get clock id on '$git_work_tree'.\n" .
-+		"Falling back to scanning...\n" if $? != 0;
-+
-+	return $json_pkg->new->utf8->decode($response);
-+}
-+
-+sub watchman_query {
-+	my $pid = open2(\*CHLD_OUT, \*CHLD_IN, 'watchman -j --no-pretty')
-+	or die "open2() failed: $!\n" .
-+	"Falling back to scanning...\n";
-+
-+	# In the query expression below we're asking for names of files that
-+	# changed since $last_update_token but not from the .git folder.
-+	#
-+	# To accomplish this, we're using the "since" generator to use the
-+	# recency index to select candidate nodes and "fields" to limit the
-+	# output to file names only. Then we're using the "expression" term to
-+	# further constrain the results.
-+	if (substr($last_update_token, 0, 1) eq "c") {
-+		$last_update_token = "\"$last_update_token\"";
-+	}
-+	my $query = <<"	END";
-+		["query", "$git_work_tree", {
-+			"since": $last_update_token,
-+			"fields": ["name"],
-+			"expression": ["not", ["dirname", ".git"]]
-+		}]
-+	END
-+
-+	# Uncomment for debugging the watchman query
-+	# open (my $fh, ">", ".git/watchman-query.json");
-+	# print $fh $query;
-+	# close $fh;
-+
-+	print CHLD_IN $query;
-+	close CHLD_IN;
-+	my $response = do {local $/; <CHLD_OUT>};
-+
-+	# Uncomment for debugging the watch response
-+	# open ($fh, ">", ".git/watchman-response.json");
-+	# print $fh $response;
-+	# close $fh;
-+
-+	die "Watchman: command returned no output.\n" .
-+	"Falling back to scanning...\n" if $response eq "";
-+	die "Watchman: command returned invalid output: $response\n" .
-+	"Falling back to scanning...\n" unless $response =~ /^\{/;
-+
-+	return $json_pkg->new->utf8->decode($response);
-+}
-+
-+sub is_work_tree_watched {
-+	my ($output) = @_;
-+	my $error = $output->{error};
-+	if ($retry > 0 and $error and $error =~ m/unable to resolve root .* directory (.*) is not watched/) {
-+		$retry--;
-+		my $response = qx/watchman watch "$git_work_tree"/;
-+		die "Failed to make watchman watch '$git_work_tree'.\n" .
-+		    "Falling back to scanning...\n" if $? != 0;
-+		$output = $json_pkg->new->utf8->decode($response);
-+		$error = $output->{error};
-+		die "Watchman: $error.\n" .
-+		"Falling back to scanning...\n" if $error;
-+
-+		# Uncomment for debugging watchman output
-+		# open (my $fh, ">", ".git/watchman-output.out");
-+		# close $fh;
-+
-+		# Watchman will always return all files on the first query so
-+		# return the fast "everything is dirty" flag to git and do the
-+		# Watchman query just to get it over with now so we won't pay
-+		# the cost in git to look up each individual file.
-+		my $o = watchman_clock();
-+		$error = $output->{error};
-+
-+		die "Watchman: $error.\n" .
-+		"Falling back to scanning...\n" if $error;
-+
-+		output_result($o->{clock}, ("/"));
-+		$last_update_token = $o->{clock};
-+
-+		eval { launch_watchman() };
-+		return 0;
-+	}
-+
-+	die "Watchman: $error.\n" .
-+	"Falling back to scanning...\n" if $error;
-+
-+	return 1;
-+}
-+
-+sub get_working_dir {
-+	my $working_dir;
-+	if ($^O =~ 'msys' || $^O =~ 'cygwin') {
-+		$working_dir = Win32::GetCwd();
-+		$working_dir =~ tr/\\/\//;
-+	} else {
-+		require Cwd;
-+		$working_dir = Cwd::cwd();
-+	}
-+
-+	return $working_dir;
-+}
-diff -Naur cross-sh/.git/hooks/post-update.sample cross-sh-mingw/.git/hooks/post-update.sample
---- cross-sh/.git/hooks/post-update.sample	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/hooks/post-update.sample	2022-09-18 12:17:36.230766954 -0400
-@@ -0,0 +1,8 @@
-+#!/bin/sh
-+#
-+# An example hook script to prepare a packed repository for use over
-+# dumb transports.
-+#
-+# To enable this hook, rename this file to "post-update".
-+
-+exec git update-server-info
-diff -Naur cross-sh/.git/hooks/pre-applypatch.sample cross-sh-mingw/.git/hooks/pre-applypatch.sample
---- cross-sh/.git/hooks/pre-applypatch.sample	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/hooks/pre-applypatch.sample	2022-09-18 12:17:36.230766954 -0400
-@@ -0,0 +1,14 @@
-+#!/bin/sh
-+#
-+# An example hook script to verify what is about to be committed
-+# by applypatch from an e-mail message.
-+#
-+# The hook should exit with non-zero status after issuing an
-+# appropriate message if it wants to stop the commit.
-+#
-+# To enable this hook, rename this file to "pre-applypatch".
-+
-+. git-sh-setup
-+precommit="$(git rev-parse --git-path hooks/pre-commit)"
-+test -x "$precommit" && exec "$precommit" ${1+"$@"}
-+:
-diff -Naur cross-sh/.git/hooks/pre-commit.sample cross-sh-mingw/.git/hooks/pre-commit.sample
---- cross-sh/.git/hooks/pre-commit.sample	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/hooks/pre-commit.sample	2022-09-18 12:17:36.231766955 -0400
-@@ -0,0 +1,49 @@
-+#!/bin/sh
-+#
-+# An example hook script to verify what is about to be committed.
-+# Called by "git commit" with no arguments.  The hook should
-+# exit with non-zero status after issuing an appropriate message if
-+# it wants to stop the commit.
-+#
-+# To enable this hook, rename this file to "pre-commit".
-+
-+if git rev-parse --verify HEAD >/dev/null 2>&1
-+then
-+	against=HEAD
-+else
-+	# Initial commit: diff against an empty tree object
-+	against=$(git hash-object -t tree /dev/null)
-+fi
-+
-+# If you want to allow non-ASCII filenames set this variable to true.
-+allownonascii=$(git config --type=bool hooks.allownonascii)
-+
-+# Redirect output to stderr.
-+exec 1>&2
-+
-+# Cross platform projects tend to avoid non-ASCII filenames; prevent
-+# them from being added to the repository. We exploit the fact that the
-+# printable range starts at the space character and ends with tilde.
-+if [ "$allownonascii" != "true" ] &&
-+	# Note that the use of brackets around a tr range is ok here, (it's
-+	# even required, for portability to Solaris 10's /usr/bin/tr), since
-+	# the square bracket bytes happen to fall in the designated range.
-+	test $(git diff --cached --name-only --diff-filter=A -z $against |
-+	  LC_ALL=C tr -d '[ -~]\0' | wc -c) != 0
-+then
-+	cat <<\EOF
-+Error: Attempt to add a non-ASCII file name.
-+
-+This can cause problems if you want to work with people on other platforms.
-+
-+To be portable it is advisable to rename the file.
-+
-+If you know what you are doing you can disable this check using:
-+
-+  git config hooks.allownonascii true
-+EOF
-+	exit 1
-+fi
-+
-+# If there are whitespace errors, print the offending file names and fail.
-+exec git diff-index --check --cached $against --
-diff -Naur cross-sh/.git/hooks/pre-merge-commit.sample cross-sh-mingw/.git/hooks/pre-merge-commit.sample
---- cross-sh/.git/hooks/pre-merge-commit.sample	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/hooks/pre-merge-commit.sample	2022-09-18 12:17:36.230766954 -0400
-@@ -0,0 +1,13 @@
-+#!/bin/sh
-+#
-+# An example hook script to verify what is about to be committed.
-+# Called by "git merge" with no arguments.  The hook should
-+# exit with non-zero status after issuing an appropriate message to
-+# stderr if it wants to stop the merge commit.
-+#
-+# To enable this hook, rename this file to "pre-merge-commit".
-+
-+. git-sh-setup
-+test -x "$GIT_DIR/hooks/pre-commit" &&
-+        exec "$GIT_DIR/hooks/pre-commit"
-+:
-diff -Naur cross-sh/.git/hooks/prepare-commit-msg.sample cross-sh-mingw/.git/hooks/prepare-commit-msg.sample
---- cross-sh/.git/hooks/prepare-commit-msg.sample	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/hooks/prepare-commit-msg.sample	2022-09-18 12:17:36.230766954 -0400
-@@ -0,0 +1,42 @@
-+#!/bin/sh
-+#
-+# An example hook script to prepare the commit log message.
-+# Called by "git commit" with the name of the file that has the
-+# commit message, followed by the description of the commit
-+# message's source.  The hook's purpose is to edit the commit
-+# message file.  If the hook fails with a non-zero status,
-+# the commit is aborted.
-+#
-+# To enable this hook, rename this file to "prepare-commit-msg".
-+
-+# This hook includes three examples. The first one removes the
-+# "# Please enter the commit message..." help message.
-+#
-+# The second includes the output of "git diff --name-status -r"
-+# into the message, just before the "git status" output.  It is
-+# commented because it doesn't cope with --amend or with squashed
-+# commits.
-+#
-+# The third example adds a Signed-off-by line to the message, that can
-+# still be edited.  This is rarely a good idea.
-+
-+COMMIT_MSG_FILE=$1
-+COMMIT_SOURCE=$2
-+SHA1=$3
-+
-+/usr/bin/perl -i.bak -ne 'print unless(m/^. Please enter the commit message/..m/^#$/)' "$COMMIT_MSG_FILE"
-+
-+# case "$COMMIT_SOURCE,$SHA1" in
-+#  ,|template,)
-+#    /usr/bin/perl -i.bak -pe '
-+#       print "\n" . `git diff --cached --name-status -r`
-+# 	 if /^#/ && $first++ == 0' "$COMMIT_MSG_FILE" ;;
-+#  *) ;;
-+# esac
-+
-+# SOB=$(git var GIT_COMMITTER_IDENT | sed -n 's/^\(.*>\).*$/Signed-off-by: \1/p')
-+# git interpret-trailers --in-place --trailer "$SOB" "$COMMIT_MSG_FILE"
-+# if test -z "$COMMIT_SOURCE"
-+# then
-+#   /usr/bin/perl -i.bak -pe 'print "\n" if !$first_line++' "$COMMIT_MSG_FILE"
-+# fi
-diff -Naur cross-sh/.git/hooks/pre-push.sample cross-sh-mingw/.git/hooks/pre-push.sample
---- cross-sh/.git/hooks/pre-push.sample	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/hooks/pre-push.sample	2022-09-18 12:17:36.231766955 -0400
-@@ -0,0 +1,53 @@
-+#!/bin/sh
-+
-+# An example hook script to verify what is about to be pushed.  Called by "git
-+# push" after it has checked the remote status, but before anything has been
-+# pushed.  If this script exits with a non-zero status nothing will be pushed.
-+#
-+# This hook is called with the following parameters:
-+#
-+# $1 -- Name of the remote to which the push is being done
-+# $2 -- URL to which the push is being done
-+#
-+# If pushing without using a named remote those arguments will be equal.
-+#
-+# Information about the commits which are being pushed is supplied as lines to
-+# the standard input in the form:
-+#
-+#   <local ref> <local oid> <remote ref> <remote oid>
-+#
-+# This sample shows how to prevent push of commits where the log message starts
-+# with "WIP" (work in progress).
-+
-+remote="$1"
-+url="$2"
-+
-+zero=$(git hash-object --stdin </dev/null | tr '[0-9a-f]' '0')
-+
-+while read local_ref local_oid remote_ref remote_oid
-+do
-+	if test "$local_oid" = "$zero"
-+	then
-+		# Handle delete
-+		:
-+	else
-+		if test "$remote_oid" = "$zero"
-+		then
-+			# New branch, examine all commits
-+			range="$local_oid"
-+		else
-+			# Update to existing branch, examine new commits
-+			range="$remote_oid..$local_oid"
-+		fi
-+
-+		# Check for WIP commit
-+		commit=$(git rev-list -n 1 --grep '^WIP' "$range")
-+		if test -n "$commit"
-+		then
-+			echo >&2 "Found WIP commit in $local_ref, not pushing"
-+			exit 1
-+		fi
-+	fi
-+done
-+
-+exit 0
-diff -Naur cross-sh/.git/hooks/pre-rebase.sample cross-sh-mingw/.git/hooks/pre-rebase.sample
---- cross-sh/.git/hooks/pre-rebase.sample	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/hooks/pre-rebase.sample	2022-09-18 12:17:36.230766954 -0400
-@@ -0,0 +1,169 @@
-+#!/bin/sh
-+#
-+# Copyright (c) 2006, 2008 Junio C Hamano
-+#
-+# The "pre-rebase" hook is run just before "git rebase" starts doing
-+# its job, and can prevent the command from running by exiting with
-+# non-zero status.
-+#
-+# The hook is called with the following parameters:
-+#
-+# $1 -- the upstream the series was forked from.
-+# $2 -- the branch being rebased (or empty when rebasing the current branch).
-+#
-+# This sample shows how to prevent topic branches that are already
-+# merged to 'next' branch from getting rebased, because allowing it
-+# would result in rebasing already published history.
-+
-+publish=next
-+basebranch="$1"
-+if test "$#" = 2
-+then
-+	topic="refs/heads/$2"
-+else
-+	topic=`git symbolic-ref HEAD` ||
-+	exit 0 ;# we do not interrupt rebasing detached HEAD
-+fi
-+
-+case "$topic" in
-+refs/heads/??/*)
-+	;;
-+*)
-+	exit 0 ;# we do not interrupt others.
-+	;;
-+esac
-+
-+# Now we are dealing with a topic branch being rebased
-+# on top of master.  Is it OK to rebase it?
-+
-+# Does the topic really exist?
-+git show-ref -q "$topic" || {
-+	echo >&2 "No such branch $topic"
-+	exit 1
-+}
-+
-+# Is topic fully merged to master?
-+not_in_master=`git rev-list --pretty=oneline ^master "$topic"`
-+if test -z "$not_in_master"
-+then
-+	echo >&2 "$topic is fully merged to master; better remove it."
-+	exit 1 ;# we could allow it, but there is no point.
-+fi
-+
-+# Is topic ever merged to next?  If so you should not be rebasing it.
-+only_next_1=`git rev-list ^master "^$topic" ${publish} | sort`
-+only_next_2=`git rev-list ^master           ${publish} | sort`
-+if test "$only_next_1" = "$only_next_2"
-+then
-+	not_in_topic=`git rev-list "^$topic" master`
-+	if test -z "$not_in_topic"
-+	then
-+		echo >&2 "$topic is already up to date with master"
-+		exit 1 ;# we could allow it, but there is no point.
-+	else
-+		exit 0
-+	fi
-+else
-+	not_in_next=`git rev-list --pretty=oneline ^${publish} "$topic"`
-+	/usr/bin/perl -e '
-+		my $topic = $ARGV[0];
-+		my $msg = "* $topic has commits already merged to public branch:\n";
-+		my (%not_in_next) = map {
-+			/^([0-9a-f]+) /;
-+			($1 => 1);
-+		} split(/\n/, $ARGV[1]);
-+		for my $elem (map {
-+				/^([0-9a-f]+) (.*)$/;
-+				[$1 => $2];
-+			} split(/\n/, $ARGV[2])) {
-+			if (!exists $not_in_next{$elem->[0]}) {
-+				if ($msg) {
-+					print STDERR $msg;
-+					undef $msg;
-+				}
-+				print STDERR " $elem->[1]\n";
-+			}
-+		}
-+	' "$topic" "$not_in_next" "$not_in_master"
-+	exit 1
-+fi
-+
-+<<\DOC_END
-+
-+This sample hook safeguards topic branches that have been
-+published from being rewound.
-+
-+The workflow assumed here is:
-+
-+ * Once a topic branch forks from "master", "master" is never
-+   merged into it again (either directly or indirectly).
-+
-+ * Once a topic branch is fully cooked and merged into "master",
-+   it is deleted.  If you need to build on top of it to correct
-+   earlier mistakes, a new topic branch is created by forking at
-+   the tip of the "master".  This is not strictly necessary, but
-+   it makes it easier to keep your history simple.
-+
-+ * Whenever you need to test or publish your changes to topic
-+   branches, merge them into "next" branch.
-+
-+The script, being an example, hardcodes the publish branch name
-+to be "next", but it is trivial to make it configurable via
-+$GIT_DIR/config mechanism.
-+
-+With this workflow, you would want to know:
-+
-+(1) ... if a topic branch has ever been merged to "next".  Young
-+    topic branches can have stupid mistakes you would rather
-+    clean up before publishing, and things that have not been
-+    merged into other branches can be easily rebased without
-+    affecting other people.  But once it is published, you would
-+    not want to rewind it.
-+
-+(2) ... if a topic branch has been fully merged to "master".
-+    Then you can delete it.  More importantly, you should not
-+    build on top of it -- other people may already want to
-+    change things related to the topic as patches against your
-+    "master", so if you need further changes, it is better to
-+    fork the topic (perhaps with the same name) afresh from the
-+    tip of "master".
-+
-+Let's look at this example:
-+
-+		   o---o---o---o---o---o---o---o---o---o "next"
-+		  /       /           /           /
-+		 /   a---a---b A     /           /
-+		/   /               /           /
-+	       /   /   c---c---c---c B         /
-+	      /   /   /             \         /
-+	     /   /   /   b---b C     \       /
-+	    /   /   /   /             \     /
-+    ---o---o---o---o---o---o---o---o---o---o---o "master"
-+
-+
-+A, B and C are topic branches.
-+
-+ * A has one fix since it was merged up to "next".
-+
-+ * B has finished.  It has been fully merged up to "master" and "next",
-+   and is ready to be deleted.
-+
-+ * C has not merged to "next" at all.
-+
-+We would want to allow C to be rebased, refuse A, and encourage
-+B to be deleted.
-+
-+To compute (1):
-+
-+	git rev-list ^master ^topic next
-+	git rev-list ^master        next
-+
-+	if these match, topic has not merged in next at all.
-+
-+To compute (2):
-+
-+	git rev-list master..topic
-+
-+	if this is empty, it is fully merged to "master".
-+
-+DOC_END
-diff -Naur cross-sh/.git/hooks/pre-receive.sample cross-sh-mingw/.git/hooks/pre-receive.sample
---- cross-sh/.git/hooks/pre-receive.sample	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/hooks/pre-receive.sample	2022-09-18 12:17:36.231766955 -0400
-@@ -0,0 +1,24 @@
-+#!/bin/sh
-+#
-+# An example hook script to make use of push options.
-+# The example simply echoes all push options that start with 'echoback='
-+# and rejects all pushes when the "reject" push option is used.
-+#
-+# To enable this hook, rename this file to "pre-receive".
-+
-+if test -n "$GIT_PUSH_OPTION_COUNT"
-+then
-+	i=0
-+	while test "$i" -lt "$GIT_PUSH_OPTION_COUNT"
-+	do
-+		eval "value=\$GIT_PUSH_OPTION_$i"
-+		case "$value" in
-+		echoback=*)
-+			echo "echo from the pre-receive-hook: ${value#*=}" >&2
-+			;;
-+		reject)
-+			exit 1
-+		esac
-+		i=$((i + 1))
-+	done
-+fi
-diff -Naur cross-sh/.git/hooks/push-to-checkout.sample cross-sh-mingw/.git/hooks/push-to-checkout.sample
---- cross-sh/.git/hooks/push-to-checkout.sample	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/hooks/push-to-checkout.sample	2022-09-18 12:17:36.230766954 -0400
-@@ -0,0 +1,78 @@
-+#!/bin/sh
-+
-+# An example hook script to update a checked-out tree on a git push.
-+#
-+# This hook is invoked by git-receive-pack(1) when it reacts to git
-+# push and updates reference(s) in its repository, and when the push
-+# tries to update the branch that is currently checked out and the
-+# receive.denyCurrentBranch configuration variable is set to
-+# updateInstead.
-+#
-+# By default, such a push is refused if the working tree and the index
-+# of the remote repository has any difference from the currently
-+# checked out commit; when both the working tree and the index match
-+# the current commit, they are updated to match the newly pushed tip
-+# of the branch. This hook is to be used to override the default
-+# behaviour; however the code below reimplements the default behaviour
-+# as a starting point for convenient modification.
-+#
-+# The hook receives the commit with which the tip of the current
-+# branch is going to be updated:
-+commit=$1
-+
-+# It can exit with a non-zero status to refuse the push (when it does
-+# so, it must not modify the index or the working tree).
-+die () {
-+	echo >&2 "$*"
-+	exit 1
-+}
-+
-+# Or it can make any necessary changes to the working tree and to the
-+# index to bring them to the desired state when the tip of the current
-+# branch is updated to the new commit, and exit with a zero status.
-+#
-+# For example, the hook can simply run git read-tree -u -m HEAD "$1"
-+# in order to emulate git fetch that is run in the reverse direction
-+# with git push, as the two-tree form of git read-tree -u -m is
-+# essentially the same as git switch or git checkout that switches
-+# branches while keeping the local changes in the working tree that do
-+# not interfere with the difference between the branches.
-+
-+# The below is a more-or-less exact translation to shell of the C code
-+# for the default behaviour for git's push-to-checkout hook defined in
-+# the push_to_deploy() function in builtin/receive-pack.c.
-+#
-+# Note that the hook will be executed from the repository directory,
-+# not from the working tree, so if you want to perform operations on
-+# the working tree, you will have to adapt your code accordingly, e.g.
-+# by adding "cd .." or using relative paths.
-+
-+if ! git update-index -q --ignore-submodules --refresh
-+then
-+	die "Up-to-date check failed"
-+fi
-+
-+if ! git diff-files --quiet --ignore-submodules --
-+then
-+	die "Working directory has unstaged changes"
-+fi
-+
-+# This is a rough translation of:
-+#
-+#   head_has_history() ? "HEAD" : EMPTY_TREE_SHA1_HEX
-+if git cat-file -e HEAD 2>/dev/null
-+then
-+	head=HEAD
-+else
-+	head=$(git hash-object -t tree --stdin </dev/null)
-+fi
-+
-+if ! git diff-index --quiet --cached --ignore-submodules $head --
-+then
-+	die "Working directory has staged changes"
-+fi
-+
-+if ! git read-tree -u -m "$commit"
-+then
-+	die "Could not update working tree to new HEAD"
-+fi
-diff -Naur cross-sh/.git/hooks/update.sample cross-sh-mingw/.git/hooks/update.sample
---- cross-sh/.git/hooks/update.sample	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/hooks/update.sample	2022-09-18 12:17:36.231766955 -0400
-@@ -0,0 +1,128 @@
-+#!/bin/sh
-+#
-+# An example hook script to block unannotated tags from entering.
-+# Called by "git receive-pack" with arguments: refname sha1-old sha1-new
-+#
-+# To enable this hook, rename this file to "update".
-+#
-+# Config
-+# ------
-+# hooks.allowunannotated
-+#   This boolean sets whether unannotated tags will be allowed into the
-+#   repository.  By default they won't be.
-+# hooks.allowdeletetag
-+#   This boolean sets whether deleting tags will be allowed in the
-+#   repository.  By default they won't be.
-+# hooks.allowmodifytag
-+#   This boolean sets whether a tag may be modified after creation. By default
-+#   it won't be.
-+# hooks.allowdeletebranch
-+#   This boolean sets whether deleting branches will be allowed in the
-+#   repository.  By default they won't be.
-+# hooks.denycreatebranch
-+#   This boolean sets whether remotely creating branches will be denied
-+#   in the repository.  By default this is allowed.
-+#
-+
-+# --- Command line
-+refname="$1"
-+oldrev="$2"
-+newrev="$3"
-+
-+# --- Safety check
-+if [ -z "$GIT_DIR" ]; then
-+	echo "Don't run this script from the command line." >&2
-+	echo " (if you want, you could supply GIT_DIR then run" >&2
-+	echo "  $0 <ref> <oldrev> <newrev>)" >&2
-+	exit 1
-+fi
-+
-+if [ -z "$refname" -o -z "$oldrev" -o -z "$newrev" ]; then
-+	echo "usage: $0 <ref> <oldrev> <newrev>" >&2
-+	exit 1
-+fi
-+
-+# --- Config
-+allowunannotated=$(git config --type=bool hooks.allowunannotated)
-+allowdeletebranch=$(git config --type=bool hooks.allowdeletebranch)
-+denycreatebranch=$(git config --type=bool hooks.denycreatebranch)
-+allowdeletetag=$(git config --type=bool hooks.allowdeletetag)
-+allowmodifytag=$(git config --type=bool hooks.allowmodifytag)
-+
-+# check for no description
-+projectdesc=$(sed -e '1q' "$GIT_DIR/description")
-+case "$projectdesc" in
-+"Unnamed repository"* | "")
-+	echo "*** Project description file hasn't been set" >&2
-+	exit 1
-+	;;
-+esac
-+
-+# --- Check types
-+# if $newrev is 0000...0000, it's a commit to delete a ref.
-+zero=$(git hash-object --stdin </dev/null | tr '[0-9a-f]' '0')
-+if [ "$newrev" = "$zero" ]; then
-+	newrev_type=delete
-+else
-+	newrev_type=$(git cat-file -t $newrev)
-+fi
-+
-+case "$refname","$newrev_type" in
-+	refs/tags/*,commit)
-+		# un-annotated tag
-+		short_refname=${refname##refs/tags/}
-+		if [ "$allowunannotated" != "true" ]; then
-+			echo "*** The un-annotated tag, $short_refname, is not allowed in this repository" >&2
-+			echo "*** Use 'git tag [ -a | -s ]' for tags you want to propagate." >&2
-+			exit 1
-+		fi
-+		;;
-+	refs/tags/*,delete)
-+		# delete tag
-+		if [ "$allowdeletetag" != "true" ]; then
-+			echo "*** Deleting a tag is not allowed in this repository" >&2
-+			exit 1
-+		fi
-+		;;
-+	refs/tags/*,tag)
-+		# annotated tag
-+		if [ "$allowmodifytag" != "true" ] && git rev-parse $refname > /dev/null 2>&1
-+		then
-+			echo "*** Tag '$refname' already exists." >&2
-+			echo "*** Modifying a tag is not allowed in this repository." >&2
-+			exit 1
-+		fi
-+		;;
-+	refs/heads/*,commit)
-+		# branch
-+		if [ "$oldrev" = "$zero" -a "$denycreatebranch" = "true" ]; then
-+			echo "*** Creating a branch is not allowed in this repository" >&2
-+			exit 1
-+		fi
-+		;;
-+	refs/heads/*,delete)
-+		# delete branch
-+		if [ "$allowdeletebranch" != "true" ]; then
-+			echo "*** Deleting a branch is not allowed in this repository" >&2
-+			exit 1
-+		fi
-+		;;
-+	refs/remotes/*,commit)
-+		# tracking branch
-+		;;
-+	refs/remotes/*,delete)
-+		# delete tracking branch
-+		if [ "$allowdeletebranch" != "true" ]; then
-+			echo "*** Deleting a tracking branch is not allowed in this repository" >&2
-+			exit 1
-+		fi
-+		;;
-+	*)
-+		# Anything else (is there anything else?)
-+		echo "*** Update hook: unknown type of update to ref $refname of type $newrev_type" >&2
-+		exit 1
-+		;;
-+esac
-+
-+# --- Finished
-+exit 0
-diff -Naur cross-sh/.git/index cross-sh-mingw/.git/index
---- cross-sh/.git/index	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/index	2022-09-18 12:17:36.465767227 -0400
-@@ -0,0 +1,2 @@
-+DIRC      c'D Ã;c'D Ã;   ,Ÿ  ¤          ÏûVS²üéüi£îŸ÷”pÆ 	README.md c'D Ã;c'D Ã;   ,µ  ¤          vÒ“1;¢¯Æ®+<§µï}CkÄó” build_toolchain.sh        c'D Ã;c'D Ã;   ,¶  ¤          ÊË^¾;¦‡ÒyaNE)¡Š.VºN setup.sh  c'D Ã;c'D Ã;   ,¸  ¤          Ã¢›\éíN}ëYrÚQ±‡áP¯ toolchain.conf    c'D Ã;c'D Ã;   ,»  ¤          Ÿ¿ñéQO¯ÑCÊÉÂbq¸käŞBé toolchain_binutils.sh     c'D Ã;c'D Ã;   ,¿  ¤           h´ŠàË^M=—¯hFı‘Óåá toolchain_gcc_final.sh    c'D Ã;c'D Ã;   ,Á  ¤          Ô±KC/	N-0ÊJ< ájš„¹« toolchain_gcc_static.sh   c'D Ã;c'D Ã;   -  ¤          ]‡„*ƒİ¥	2!¨	@Ù­™Ú	 toolchain_glibc.sh        c'D Ã;c'D Ã;   -Ÿ  ¤          >@ò0Æ¯<‰F>-P‚>ãŞ toolchain_linux_headers.sh        c'D Ã;c'D Ã;   -   ¤          hîĞb–Ö‘Òòò­éæ;ÀD¶]æ toolchain_musl.sh c'D Ã;c'D Ã;   -¢  ¤          ZÁ%ä•£ˆøï*2œã3¬ùrAæñ toolchain_newlib.sh       c'D Ã;c'D Ã;   -ª  ¤          €Y-‘Úõ„‚ˆËx±û	“oø¡ toolchain_picolibc.sh     c'D Ã;c'D Ã;   -«  ¤          $wóbÙh9ÀĞhhåY¢¼*ãŞÙ tucana-mingw.patch        c'D Ã;c'D Ã;   -¬  ¤          $ıMºŒ´g(\o$É¸oX{ tucana.patch      c'D Ã;c'D Ã;   -­  ¤          +¾x™wD~¢œàèZŸã•V01 wget      TREE    15 0
-+éê\ôƒ›Ğj¥³;¯kLà¼Y¤oVBDWÉê<W0E~•–
-\ No newline at end of file
-diff -Naur cross-sh/.git/info/exclude cross-sh-mingw/.git/info/exclude
---- cross-sh/.git/info/exclude	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/info/exclude	2022-09-18 12:17:36.230766954 -0400
-@@ -0,0 +1,6 @@
-+# git ls-files --others --exclude-from=.git/info/exclude
-+# Lines that start with '#' are comments.
-+# For a project mostly in C, the following would be a good set of
-+# exclude patterns (uncomment them if you want to use them):
-+# *.[oa]
-+# *~
-diff -Naur cross-sh/.git/logs/HEAD cross-sh-mingw/.git/logs/HEAD
---- cross-sh/.git/logs/HEAD	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/logs/HEAD	2022-09-18 12:17:36.464767226 -0400
-@@ -0,0 +1 @@
-+0000000000000000000000000000000000000000 2ba56b6221629dbc0e92cf82d822c597be999d57 root <root@tucana.(none)> 1663517856 -0400	clone: from https://github.com/xXTeraXx/cross-sh.git
-diff -Naur cross-sh/.git/logs/refs/heads/main cross-sh-mingw/.git/logs/refs/heads/main
---- cross-sh/.git/logs/refs/heads/main	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/logs/refs/heads/main	2022-09-18 12:17:36.464767226 -0400
-@@ -0,0 +1 @@
-+0000000000000000000000000000000000000000 2ba56b6221629dbc0e92cf82d822c597be999d57 root <root@tucana.(none)> 1663517856 -0400	clone: from https://github.com/xXTeraXx/cross-sh.git
-diff -Naur cross-sh/.git/logs/refs/remotes/origin/HEAD cross-sh-mingw/.git/logs/refs/remotes/origin/HEAD
---- cross-sh/.git/logs/refs/remotes/origin/HEAD	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/logs/refs/remotes/origin/HEAD	2022-09-18 12:17:36.464767226 -0400
-@@ -0,0 +1 @@
-+0000000000000000000000000000000000000000 2ba56b6221629dbc0e92cf82d822c597be999d57 root <root@tucana.(none)> 1663517856 -0400	clone: from https://github.com/xXTeraXx/cross-sh.git
-diff -Naur cross-sh/.git/objects/pack/pack-cac3dc93a0ac9dc3368ef98990189807b76a6c68.idx cross-sh-mingw/.git/objects/pack/pack-cac3dc93a0ac9dc3368ef98990189807b76a6c68.idx
---- cross-sh/.git/objects/pack/pack-cac3dc93a0ac9dc3368ef98990189807b76a6c68.idx	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/objects/pack/pack-cac3dc93a0ac9dc3368ef98990189807b76a6c68.idx	2022-09-18 12:17:36.459767220 -0400
-@@ -0,0 +1,21 @@
-+ÿtOc                                                                                               	   
-+   
-+   
-+   
-+                                                                                                                                                                              !   "   #   $   $   $   $   $   $   %   &   &   '   '   (   )   )   *   *   *   *   *   *   *   *   +   +   +   +   +   ,   ,   ,   ,   ,   ,   ,   ,   .   /   /   0   0   0   0   1   2   2   2   3   3   3   3   3   3   3   3   3   4   5   5   5   5   5   6   6   6   6   6   7   8   8   9   :   :   :   <   =   >   >   >   >   >   >   ?   @   @   C   C   C   C   C   D   D   D   D   D   D   D   D   G   H   H   H   H   I   I   I   J   J   J   K   K   L   L   M   N   N   N   N   O   O   O   Q   Q   R   R   T   U   U   U   U   U   U   U   U   U   U   U   W   W   W   W   Y   Z   Z   Z   [   \   \   \   \   \   ]   ]   ]   ]   ^   ^   ^   ^   `   `   a   a   bî¾{İb-M×-[„|»‡É˜µÊÖ„ŸL+j†p>}ÙóbÙh9ÀĞhhåY¢¼*ãŞÙ	õeaÊÒ].tFèÏN€©Kûµwö1ñÉ9Ø.8E|ê(ÌÓÄUN#1aIKãtøßÚRÔ³3ˆ±”–3¡!KßœßıMºŒ´g(\o$É¸oX{İ5Æ
-+jû§Fß¥›Ù*>,X9†³çªí…Ø"â³éÛ£ÎE!z±%u&@ØV¡ÉÅoõgÄp"fë'xvÜÓtùš`»z¶vÅ#à‡4¤Ô.ğWõ -«,nü+¥kb!b¼’Ï‚Ø"Å—¾™W.O«¶±	…8ú&úú°J›åpÙY0¶qäÜ¢Cã òš¬Âa~oSe™6pŸ¯ŠÑ©Šh,+Sx¾ù¡ÃÌ
-+6ü¦äúxU×ıı!¼úPÅŸô8]Ô»˜”ôqd}¹¶4Š¬ŒHÍœ¿:”4›Ş½±”ß}ÌlÆ=mÉ`q:ÎŠ¶D7ŠŠ•ôœ´›ı_D…f™>œ%öQ¢e&@ám2š€î>º²º]!®ÉTõŸ´S>×1µBKŸÚÌ®ÔÎ«é%-){tËKk<şj·›’²MÔğnµäö°šCKí ¦zRŒdàãNÚL3í­¬XOïRôâäA!K®wOœ¬ÿìûËTS˜&¸%`ÔËıbpä²qIæ¥µYV‘@Í€d0ÔÛ,ßgò3¬|X¿îƒXÖˆ</\“b< Ç<oßYÆY6à4~©3Êà’@#¡úOZpÈæ8¸ò·ù^¾È¢ºfmÇ¤ÊZÁ%ä•£ˆøï*2œã3¬ùrAæñ[H
-+m__h"­¼.•¹0a–I\ï÷Úª…T»!¤ƒÆg¤§]‡„*ƒİ¥	2!¨	@Ù­™Ú	c¼›ªèoìÑğ3lÆS,+‡d˜Ÿ‘I;š1»ÃñSD`Şc°¤ˆfÖÖ=¢#Œ¦Oàá$|¶òh´ŠàË^M=—¯hFı‘Óåái¹m-Hºœ«z.:øT¼º½z°kİ‚ys/û´®6Únd+¦;¸sÿ	¨Ê·Yo|çåäé9îÙ—Rx/#&/ÓpdôQ}©æ
-+é	}Ô€´LÊB”ÏÇáQ&‰Î&a€Y-‘Úõ„‚ˆËx±û	“oø¡>@ò0Æ¯<‰F>-P‚>ãŞƒ>,[*
-+ïµv;Ìå“?ÂWäÅÙ‡r0U’åÆÁÓå¬à.YÕ
-+ŸˆõI±N 'Ä'ğÕe9‘VR‹’óYÔsîA„µ¸ï:H8”8Mœ‹Æ®ú7&¥‘—aâ’Œ•{æòÓ£“Q#	®1€HWÈšlfíi vîĞÓçà8-‹÷4ù¨ÑŸ¬=ZaÔB UP°g C K¤y¨şVÆésc	í–Ùï‹¿¢›\éíN}ëYrÚQ±‡áP¯£Ë‘ •k,ÛÆÓiû¦ÿsÌ+Q¦M—ûŸR¾EgøÖM›­0¦¾Õí„Ñ;­ˆ­;Ó@’ná'y§•‹¢Ù/SÚLÇĞúM­TYßV¨pÉğ¢-CôuŒ¤ò ‡pÓ®vkË£Üïwlğ_W îŒÇ“¯å½ÁzÅW‘aL¤šÓÖ°(,±KC/	N-0ÊJ< ájš„¹«±¨+»ç#<ß0Ru$ª
-+Aó€B±©˜‚m'åÚ6Jdmth7Ç¨¶Õ¬­·Répd`ŞGº0	=j¾4sh.¤@Vn±"ñi¿»íÅ6¾P õ¢–G…$mmÄ|NŸÖGÑ¾x™wD~¢œàèZŸã•V01¿ñéQO¯ÑCÊÉÂbq¸käŞBéÃØ‰ù½CwMt¨Cî½>ÌQÆ?\üå«¼å–ZD!êMæ
-+ç½ÉlœïÖFMÛÑUçÒ¡!^Ó¤Ë^¾;¦‡ÒyaNE)¡Š.VºNÍ3{–DâvóòØõ02@©8ÈÎ%~}°6:mÿÓ	ƒ2p9™¿Ò“1;¢¯Æ®+<§µï}CkÄó”Õ0z8ª9©ï„U…mnğoÇÕz„€f²9e÷/Ôášö3×2ãÿJ×ÂÄ1·I%SØ,Ş±i»£xWÇÙ˜•¸¡Ÿå˜<Æ6È)@U”ç9Ù¦Y³©Ùì7Ö£ï±Y¹|OS¥ÚõÊ¬I8'Ê&XïıqVshdÛ5åáE=±¨rbvp5èzÃ£iå@ãccüCë„hÜ68SÂ^Ûé;½lß‡«L!šˆMhÔéê\ôƒ›Ğj¥³;¯kLàê¨ !S,Ÿ›BdäÍgË¨ğÅrí•{£ôL kÑypW8‰¯‚{Â‚îĞb–Ö‘Òòò­éæ;ÀD¶]æóD+»¾'W·bn§ü$
-+†öl÷µ†›Áü?ê«_"d¢(x€˜™ûVS²üéüi£îŸ÷”pÆû.!*é®Ød•xhYA*VĞjıÊàÛF@áßZ~rT³°2&AÿŒ¤c!Á‡êœ¦5Š$6KŠü)d_*t/ÆcÜr1ñörÕĞP,{«RSy Y¡Óß,ó)9f™y½j‘.à˜jî¯ˆã*¾í•©’f‘z`«0Ô%-7ï 1¬ö±B5¸ß*à
-+Ùiî#Nòƒ…i],Ã®$-œÕ*’«UÇè-û±›"2]Y==móuòÀç«/Íç¯¶ì²SÅJ3æ‘^ÒTKTË:Ü5iÊ÷nî­Ta³!†57,YÓ.ÖƒlŒ&•%HJlBò„DöKÃIÏéQ|”vÛˆ!©©@wEŸ‘»7úÎÀgzƒ¢|~ÑØ÷a°”¼‰¶@]×ŒıĞ¸ÿ}äUìÛ±$¶Blû¡7Ë<Mv¦ôsúÊû¬_Wâ‘ÑP,—£3%öLÛ»‚ÒúÁ¥”Ô;hq,ö¤tĞÆ…ô? Àë
-+±¥ª·v™¡Û†»<ûs‰³¼HD(`za+U%¿3éÄLÅ&,‚[ÕrœGÜB˜I^8ãÿ”‡Ÿw]ˆä     ã¦  ì0  ş‚  ş¯  ]  åÔ  õş Q  } ¸  ßJ  ı…  Ö  Ø½  
-+i     ›Ø  µ  S  Ÿ}  ŸÍ  ÿÕ   f     ‰  ÿ¨   ã  ¡  ¡1  ¡e  ¡“  ½  £ö  ¤4  7  
-+K  ¥   "  ±  ¥Ü  è
-+ % n  §ÿ  ª  °G  ±  â  áv  ³6  İ  ³M  µz  ·¦  ù  ¹Ô  º  ¼i  º?  ¼¥  ¾Ô  -  Úê  ÃÑ  Á›  Á   Ãò  ª`  Är  Ä   &  Ä  Ä¾  ÄÙ  Ç  ¡Ê  È0  Ê_  Ìi  Ì-  ÌŠ  Ğë  ÎÀ  Ñ  
-+™  Ñ6  Ód  ê<  ı´  Ó©   $ å š  ¤  Ö  ÖA  ÖvÊÃÜ“ ¬Ã6ù‰˜·jlh#¼çú
-+] ÓÀ˜²MğàÚ<mÂ
-\ No newline at end of file
-diff -Naur cross-sh/.git/objects/pack/pack-cac3dc93a0ac9dc3368ef98990189807b76a6c68.pack cross-sh-mingw/.git/objects/pack/pack-cac3dc93a0ac9dc3368ef98990189807b76a6c68.pack
---- cross-sh/.git/objects/pack/pack-cac3dc93a0ac9dc3368ef98990189807b76a6c68.pack	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/objects/pack/pack-cac3dc93a0ac9dc3368ef98990189807b76a6c68.pack	2022-09-18 12:17:36.459767220 -0400
-@@ -0,0 +1,243 @@
-+PACK      b®)xœ340031QrutñuÕËMaø-&¼‰åÏK‰?™‹ßÍÿ>E®à˜!DQRifNJ|I~~NrFbf^qÃ¥É†Ö‹Ö[§m³|ëûZgéì#Ÿ§@U§–”€ÔœÛg½¬ıRe¢ŸŒ«”æÂ.½°]~P5³’óóÒÍyùÖ¯öudÿ-æÀí{Ö£«ŒOÊÌ+-ÉÌ)½ÿãËÀ~ÿõO<”T¸#ûÉ=§—Ò““ãÓ2ós@:2¶t=8Çäk;}ı¼·¿/?}(„UGqIbIf2HËFog}N?]ÙS^6³fµìì_©%'3	¬:¶½E«ùîRN#Åœò7×
-+Ì¼Å‰¡:è‡ŠøŒÔÄ”Ô"°Gí>[oÃŞéf§Ğ$m7áñ=]¹¥Å`?¼»4íÇÄKŸ>­}ùÌú€Ë¶XñgŠóRËN):¨údêâïµŒæ<6^ó³ÈñÙGå™Éù0/4DêN¼ÕÿµE¦©ãtÅÆßœ“ó,„i(MNÌKÔÍÍÌK/×+H,IÎ`ØgRœ¡·Ä!,g£ÒÇÌı²»ß5CQU6Ñá¬lCŠÁ•y·uî§sÌıd¼¦ª®<=µ„a_ÅÌr	—ºEs„¼šÿxj˜! ¦XVà‚txœ›Ç:uC“ÈUƒ*‹U–+ß·„¶ææ}È8ÎÏ$6¹I Ö3rä-xœ›Çz‚eƒ2£Hšÿµk¶‹”{–ù?}È¦R³íÓdsÆ“[™$ùœ4¨$xœ340031QrutñuÕËMa86×>æÏÓÕ{N‹rQ|åûŒë9ï^Cˆ¢¤ÒÌœ”ø’üüœäŒÄÌ<½â†K“­­?¶NÛfùÖ÷µÎÒÙG>Oª.N-)- ©9·ÏzYû¥ÊD?W)Í…]za»ü jf%çç¥1Ä¼ÿ.tKnUkÈnÅ%"ÍÇøÓ—È.GWŸ”™WZ’™S2ú·¢ÖKöu7S¦VdD:jÍ»…¡!=99>-3/1¤c_À‚¯<‹¦¹·ªäæ­ñ›Íı"VÅ%‰%™É -²Û
-+ŸÜYäüxÁ§Yk%Öå§ÎÄÔ’“™V-kÙÆ²ùùª·­7¸•m~y›wñ9WÕ9@?TÄg¤&¦¤=ÒhçğÉàØzöN7;İ€&i»	ïaèÊ--ûÁ[bş­3ëæ^9·ú¥ª®fõ\!Ñ’ÓŠóRËN)	¡¶C5áÊé¿IO6z>[º5CyAfr>Ì‘ºoõm‘iê8]±ñ7çäü¡ÊÓSKöUÌ,—p©[4GèÁá¨ù§† Ïìph‚2xœ;Á²˜e£ª2 Åo¹-xœuRÁn£0½û+\•[;°­V=¬Ä!%Q7UµT@ö3€c"Û¤Q¿¾6!MRí<~óŞ›{®¯¢R¨¨d¦%-$×4ïÍ‘Ú)ïU-šA3+zEÌ”è{É[&TèÓ„l7MÜpî”+e™&„W4x\-_æëù2#¢°ßÕ4ÈÓU–,rFSA$ë¿‹,t”pÿ1êÎ`â{q);¶RBVdrûfÖmk?Ã»ğÇÑªÛQØÑ>†ÿ7İÂ{ÇºĞ~Á>ú_Yw_ÊæTu‚}DH·©„ÚwNs„at|\¤ [µØÇÑ`\¨„a¥D°­FV™3Ä´Lcå€wa[Pø.E9İúÁBëè¨½ ÕÈ—L5kĞÄü–ßÜœ9uƒ´â vİ7hã ˜eO‹bdi»¾Ù)“ÜßçNãxÓGÇ3CÕÓ‘ü:+~ÇÁKšÌŠeúÇÏâ·ëWàq:_ä…{´S
-+eìÑÿ_Ôğ0G‰ö°Œ½¬h-$šo¦;
-+º¾\OAÈæ,ì‚xœ»Éº€UUYQ?)3O?)±8ƒ‹KYÁµ"³D!?O!µ¨(¿ˆ«8µDA7Uk£P+ãä[Œ†
-+ººå™%ºÅ•ÅEùù%¶*>şÎ!ş~@‰”ÌâÄ¤œTİr°^.®ÜÄìÔÉVL^“ç1Y 4"iç	uxœ[À:ŸYHYQ?)3O?)±8ƒ«8µDA7u¢ª9P¨´$3§xb¼‰¤K|˜k^Ib‘^EWrŠ‚JAvº®ŠËÄ5’“Ë'¿eT´ÏË)VĞÕMÉ,NLÊIÕ-O-*Ê/
-+ 5¥§–Øª„8¹»†Ä;ùsqå&f§*èf©xù;Ay“½™üØ!q tK/˜é€xœ›Ï<y‚'[^jyNfÒÄ@E?×pO§ø0× ½’Ä"½Š*®ä•‚ìt]ˆÔÄy>ÆùÅ%¶*!Aî®!ñÎAşÁÁ
-+ººå™%º©‰)©EÅ¶*>şÎ!ş~ú™yÉ9¥)©“Í“¸†s ^á&¯åzxœ›À<y‚'kzNfRòDywO'çø0× ½’Ä"½Š*®ä•‚ìt]°ÌÄ%Ì¥ÅE“¥³¸àJ¹  thëFxœ›ÀÜÌ<á§Š¿³cˆ§¿ßÄgÆ“ee&{3º ¢±¿Lxœ]TmkÛ0şî_qĞA;Hã}ØÆ(lĞzm6H[Èô[­Ø—HD–ŒNNš¿;Ùn×~²|º×çyNgPOtI:»†µ3¤,Fğ[ *˜6D›ÎØºw†Ê7­±ì™e+m¨¿#P`ë^§è½­´2¶Á7’JÅJÃÖØ(2•²öÊÕ B¥MÄ*v{T0OÒBÁI7AşišeÙ,1v-ğé~c‹®FWñe6+
-+øõó@vÃ]Dc‰³‡5Ü«=Ç%Ö|:îx:vS¤9âÛôôé
-+ëB”‰¶>+w&B•Œ:Æ–®òœ-ºÛL€üåi…A=½ä#€e–²ÜÖ5¾ÀînË%J§œÿ`.ñ(¦ùhçd>âÜ±ÃÒ7Täœ|•rÎGè!ï(äŸV×‹Ùíê¹X<.—	biÀúJEÃ!§ÚXœÀ±îYßF¨M`ì}èÉ”
-+èÔ0•û‰4çÙ1Û¥òÑX‚†àïYE(ª
-+gb4’eÌW2¼k‘;QqFş²Æ,ÆÜ-|ÿz™ttÙtd?¿ÆÏÿŞcÜQ–’“zR.ÂÅc+³²1Ì$`÷ëå\Æpxd!}ÎîŒKÊ£!íõ¢øó
-+äN¸Œ™}Ç¢wÈ²AİcphßÆëË*{c£ÄCUHì°5rÂç#'L[içÃZÉVñ ¡ë±%ü”µÚoã¤Wè+ÿ—„¬œæ£)Ûr“H„¼ßJ–#uµ—]Ô}›Ïo
-+äà´°nkn×íÀlû²\‘IïÒëÀW@¡•Ûa*!Gâ@äõ^ı¢-qY/æçé>-!ÃİIV¦"Ö+â¯øõÀÑ‰"6 ¹óÕÁ0uUªXODÈ¤EGöò<üG]¥Qâ„'xœ;Ïy˜mÂÎÉşŒRL:
-+›™ò˜ @0¼ã‹Gxœ»Éz†uÃFNgÇO¿ÉÏr&eæY©8†xL®aŠ ×™£¾ı(xœì½w@Ë(Œ‚®ÛP¥ƒ   Uš"Íl ’˜B‘bÃŠ½‹ìØ°¡‚½+***vÅŞQì¢×7eSÀ xïı½ïûãqïb²;sæÌ™ÓçÌÂær8=ˆ),‘@,¦‹“,‰\‰%KÀçpå7é)‹Ég*?Ó¢Óé*;iÚXÙØĞ­œèÖÖ„µ³­sß¾;k{[G{{‚nege¥ennş+àšÖNö €İÀpr¶²ÿ3¬d? F_ ÃÃƒ [[€QÌ­,¬-z4K "cµèš"R(s%QG JaJRI‘˜+àn„xÊáòÈ›_%")	î$0Eğ‡ÉÃ¯<A"“Ç‘©Í”byÃhè(!	š@ÄMäòip,©ˆ'I$B±³¥%˜C’4Á¤X¦'EÌ¡é–²‰Â	ÂáI	+	t1ˆ-“H&[liæŒ¾`ğbKŞÒŒ˜ bòAsZ
-+“BÁÀÀR”o(Áƒ­µØ­.›³D\¡’Då*(5P±ÎJOU,¶ÃÉŞÑŞÖÎÚÎöw‹­¨É+®Xî>Ÿ™B²	Åj»$›+!$I\1W™0VÂ˜Ø<'•:1'”¯§·jÔá¤· +( vN¿£	‚ğˆß¹é$$‹-™B!/CÈìHO'2ÄÌ! ™J´~ÑA~ÑúßqÌ¯ ÿÎè« ›¾e5qøş'<ù™	#0û@Öa%‘¬dÄ;@ºS ›5A¤b1HŸ„™Lò‰„BÁ	R& IëÁ“µfPc…'ÉIHyl00€š4Áğé£H‘€K˜©˜`r$¤ˆàŠÅR.? ¤†	„".ĞPr4¸‚`ò%bˆ²X"*aÌ CrÅ'H"ÚR’#Ÿ$”#9Â Ÿ™À#±ˆA@€é(¡’	 F«¿D4 @‹Î ÀÂ“©P‹İh†&à€”J2Eb’ ÓaSĞ?‰ÀKÛBX¦4-:Ğ‘‚NĞå0h„‘  ÉªÓ0ÓÚœfèAËÖ¢;ÿNc4A~jÜ¨üÔò¿Ÿ6ımìşkö‡üAxf¬”AĞàbâV4ÌÏ>I0E‰Ò’/±@@Ï8è3äA’Ä”IL±
-+6TfİF¥ÂhD`şDZ Uó¿“ÅjbI1 "øğ $Ã–L6›`aÜD>É¦8: 6ËGP`CåõğÀ©£¸`şŠY	L6Áe“Lx?‘ä/…gA$HñXB`;DWàÉ:§ ‹ D•`2 Q“îï†¥8•)"ú…Ç{F„û‡Æûyû…Y„ô ó	c±e\Œ	ÃÌ=Æ”afhYo*ÎDŒµ¥ĞØÂKhô‘b‚g`Ó€X[Óˆ¬,‚d%Šá{îîè6&Y8œ©ŒyYPõ Ï-ò¸,¸è?MŒht	ü'¨…à¨Æq°2¦¾!ˆ$`6R>w$AgÉæ<Ë¸hB3ÖÌş¶d›"d3A„°»‘áı\4G[kÑ³§©8â:/ô48Ï&¿	«ÑNj®F{ü¬qà`Èlë©2©X„Ô™ñàÚJ)KD\–ÄIcŠø@*ÄÔW¿/gç`!É·qÁ<Ô¸úãò%d¢.Ş
-+]ØŞDæ÷s˜,2ô`P W`)›–¥)ÖRP6 –’€c¤B‚MJH–`ñÉ4 ¥Ø@¾ÀÒsA¨Ä?9
-+€Ã…L1d9&!jLXRĞ*^acŠ€ğ˜€¥qìF	„#!(·L¨ Yfd©D(•©@6øC|”!À†”Ã€Q“)ëT¨Às9âb.Ÿ…]låş"s ?¤b	„“ =pSÂM•ë.‘@ ‘Y„4(i/I"ÅP)1%Ø¾0á ‰`‚"ş\Ù”’¢9ÓÑ(ğ+cl¸pì4CÎ¤„çÖ`ŒHÉ L©± á
-+ÄãùÇ£ù›ıâá:0Ò¥¡~ëX!Aš˜H±0RàvX¸·Oh(P<V„®
-+°1|ĞKn1£ vA¦”±‰X;9Š`}!³@õÄæ‚x6‚/–
-+…@µãé)fàÉúË 3ÀØÔZø¡ Œ,	± ŒÄJƒÁÀ8fC4•ãáòÆ£µuãÙ\‘‰©‹¬¥ˆ”ˆ2@kùb?^˜œn©LÂ_D”rQäì<4<Ó”7„Z]ö b¡	aeä½CBé‚æ€á1¥ "—­?…°Xš@4x‚€h  ÙÍxD^ÔI®W¬ îI²M¦xq4±lÆ‹H±”'÷éî™,€•œmAxd¢¯H³³ÀlŠÎ™z=e¨˜¢Ş\6è:"¾ŒG3Ğl”+åÈS@Q[P›„	œ'É‚ ¹ÓÀ/$$²ÆtÜ˜ş¡!ì€Ôsù(ñ‚»8K%G~‚™Ü‡î;F1†QÄüÚ€ûbÔ£+$%8"¼<
-+Hq‡c…ƒû€{-àS·p<¢‹åë†€É—U(à‹!L—O™Àhõ™œfé"“³ 
-+Ä`{ª5h`(Xõú(ÄKó7²½XÃ~„¾a…éÄF*â+„…î”9İ‡îÎ&Y€f&rüMUÎñ¨|®B€¡Zo“3/ß ïxDpê³_a,§ }Şø:p#%’èËiBV‚“ÇL	"‚3a¨/›ãïÕb ?>Rp;2!FJ	»Çi¤1d¦È¿P÷‹¡EQ,ÌGIL~¢ÜRı¬T‘+ÌÆEïpDÈ× $MŠ º°8LàÔ‰“± pŠ±çæŒÆ Q^6Ô¦`rĞó@a ""Y$Ÿ•ô5›LG3'yÀ+ ş+ŸÍEæ“ÖKŒŒØW[LƒÍxÜ€`YD’ï#+GMœÏË`@×ÿ3Z
-+âh¤ÌR€ q¤"ğ\m p˜\>•+ƒ:¹¨PeVM~&œaeAX›äHÒĞ(¦‚¾Pêh*ŒF)1Ävx™İWWš¦O7z¦Í7T6„Ì§I‘ÜYÅÂZà‰h¤-–º¯DôL @£iÀ(¡f”~£ÅÂ,¬f6üĞúæDÎŒL6êMT¨-Ê°Ly*T$&J¥ˆQr©Ô7£î»ü¬Ä 9¤´¢¥á*r÷ìß™ù	4¥	6:;YÛÆ&({®rH™È¼pgCñÀzÈ5_@	£‰ú©P91 ÷Ò\š0—|®ÌvV€hê°R>ĞKbåuÈ!@tœiùo¹*§Bá`|å–±)eu#¨‡À¯@w²en
-+åŒ¹VHQí•>ÔS,¥”.€Ì à¥RN=Ã  é`¶ ±¿)Œc ‚¥P³”©
-+4$ıVó›J+ÛĞÌ¦0“•wlÜÔ6Á•­onÎ”îuûƒu½~Eï†Œ‡ÿ™C€º`6ú#¿î9v?‹(¸3DNt.ˆ™¼4f†˜’¥(RÀ§2€"²b/` T[ô´4„ÀÎÄÿ ’dĞ™ˆü)`!;²”UTFbO™ëZ 8Yş0Œ
-+¬$ˆ;ùÆbg` 8ÁzÁDßy0Ñ;Éœ¬67•Ë–2y²ÄŸæÏ?òòL~¿îÿƒ•ÿEô`B³¤™RH©²ĞJ)`8âjä 3-µ\V”	ÿY6˜ÌÎ…o­¬æ„r‡Ué\ÅCeœ"ÎÃÌœì+#1Ë7–i epnÄ.ßÖÆÙy )ñJcË–°^“B"²Œ‰±Œ±Dê'› y@21Aph	ºªèo;;³d`³ëiüúøm:PX”×¯	yÀŸ[7š ü¹é‘ùSµé)?Ç²wAå´	&mVr½-c¤¡GÕ„Â–¦$€EeòÅ0"şóü’Òôp6íJAõoÒÅ¤ŒEçò9‚ß®¬ˆ¤+¶Òš²¸ª:4¾¾ªZÿ'K¬ğ$vÿÑ *—“A¤ÁÌ$ÜèHà (A¶M#!Q¦ÿ»GûçüVÖª·ZA¾	[­BùæOı­V9å­V¥›²Õª£‰<]¯ñ/ù¹^ËÿŠ—ëm:Û9ı¯øø·[® 
-+’í¸ŠŞ=…½›ÎÊğ1òŸ³25	ÄÆ@T2+ET™ãnÉ&S-ùRàMÚ¸YfM‚{šÌD&—/–¸á"’GÅ¤~|®„|<‚3x”j‹@ŠP’·	#@¸¢
-+KMp~FĞ%¸©S-:‡‹“ñ~"C E„A»¶pßÙ3ÌËÏÍçh€xb¤2q©Ø	Öšé£^ SÌâr)¨½	:]’!$İZF½Æ¦‹PG]Jé!±„|*e“¬İl¨İÈş„Ç”Àm"`/p`QI>
-+£˜©.[Õ\ mM<†÷ïÉ¬NHÄ8l6Â\CH˜¾ã	¨=t“%ÁûIÔî;Ê rˆ`ª²%0Ån@ˆ…p_ƒ•Ä~$BbÌË.Éx'(¨z„¡Á¸éK#bClËéd£cW€C$ˆ £ Ç	¤|¸İ&QÈ€Õb”DŠHàEs%Æb \>¶ò* ÿÀLàò¸«D˜€YLX[‹	ùV¥Ddj3‘šßH)tV(€tÃÄ$ ‚`˜âƒÑ•™c“bn"í‹!ä c46f¬…é,&J ĞépÉè0/>Ãg€ay€‚n}a(´ÏMxÅ{¸yÁ‰ÓÙ„q4AÏ‰±Î3‘Æ"è,SËeèçêã<@‹îİvgÂè©¬ÑpİB}şAiJ$æhçÓçLH~À}`éSÄĞR*‹ôŠñIT› x t¥Œqñ~8Ò”˜ú +Qv*W¬ÈNÈë ©¸M‹NÉl2‘æ…ßà:°QüQdË  œÑ¦Ê«:C¡$¤*“*#ED’ïö+)8š–ÄëˆAb*=qp8€ßQš[‘î…R 3ë%‡­1N-.@ÈÊ¹A¾ÜtzS¬5*2ı3›­¢Ë/-·Šöÿ•ıVú¼QÛÿ›VáúËˆK¨¢)hõLqñ¿1êÊôWí¡*üLX;äíú“÷EC
-+› ~(ÿ³ÑÆMsBT:5±Uwúk«îñ1w#ÀÿÀIµù71õ?¬TUX¯ PQ…'ƒ	­*U@RæO^ÈNÁÁ]`gª0¶bTÄR.!÷„R‘¦,¹bå|Jİ± (íŒ‰ Õ,åm0ŠåÉpÇ’/¢dı%§ÁâÊÊÃe=#ÀâIÙh{z£Ôb‰ÑÆ•V…Å—ğÔ@*)',Í€á‘L¸ÛET\24àäğ„ªb1úølå±I™“	–¦äz ƒRHtEüúÅŠ81›@r;! ¸M¶•V@B-S¹lÈ$öàxRs·,ÄKC§ƒ±ay•å…n•8	g ğ\ëÕWÒ‹Ørf‹¸)•–˜gY8ÜK`®(xÈO`Å	¼PàXG¬\Jpñ%ZI¯àÀ@ ÁÃÆğğq3´–ßõw€‡æëiífh;Ô+q#è\FØt€–1vğ–’IŠeãw+lÉ`€f†–¦°¾±&TM%?Ä(YB|hM™°È‚^pÀHT¸	~T#	ÖÅ˜j ~d0LoÔY•³ÎpØUš(€³%Ì@"îêÑø¡ª¦@¸¸ ñÌL©O¤˜ÉÂóú¹Zw÷ùç«PØ!©aånóHÀø_t@^©»²òUUT7€SÄÆpTCÊÓ(İ‚	ÿ2+@ÓÇ”Š‡ìkn®z±€®hŠ(”Š›š†TjúK·O©İåî)ƒlºì«ÚÍûÇ^Ä)úv¸àMæ¡a“‡Üs.'am-!eÕ£Pê‘É§vÀ`Xx)ƒ†BF
-+`A¡}ÃÆìÜE€Ò(•E‘kD¹¡Â_n·±†aQf
-+	f!v¦:Z>'‚”,;5À%qYBÆy6°P¨¯ìĞ„ÆTÄŸáYH’ åq“ÃC'AK/w¤åSÑ:“'›±WÈB_‚ZE¹ÊSØ °a©±‚…“<..«E•Ü”O"y	ˆÊ˜"h)¡m¤‚v8Œ\áŠË.D$Ç]öYÀeƒÏòøõ>Q^!JA8—+rÌ`B“¬b
-+$e_•.áÔ
-+ˆ–—6Ä/„F˜ P †DXcŠ¬FÂ—ÜKE<ğÉ
-+ÈWªRd@}ƒ0•pUäé²`:Á8ÚŠîÄ¤sb	c+c”­ô…Ù’É&âÁ´©O0ó„GF7©à®-ÀÛ{¸†ßPŞWóC¬h0!‚3š„/Xty€gá-g‡ãü ÅõÉ!Á¬™Fà³™H5@× &f(j£V(%ã¦ŒÚG¥Æƒûò²
-+i(ªb	Úm b«‚©À‘Áh0 N(@ø¸(æ¢À²Ê}[MMj/@±ÀãBƒÃ' ğRg @h*Ğx4Sev²3Võ©"?é@€’fŠA!/ÊÖP¢KÃ]©dÆıÂ‚³à‘USŒ“ˆL şJÍS½Æ¿4PõZşW&ª>Ğ?ÈEØÿbKÁK Ìq“$„	Ë”°±²²·€¿‰AR>W@xHaòJ^/MM®ïER~=Ÿœ†Ù7¢r±(+†7 ÄÄA‚J@Á™LÿÈÔ'JLÁ¤0 ËG,,“Lm£ãõ“ªsn„ğ±h\Æ)¶èç4 ©Á¼ ±…x1¦µÂ®±šÇ“f&@„ğö@ZÊó‚Û²ê7êøÕÑ”ÑTı,¹,ª—ì<Ú¤æA5˜cPQ"Î óÉt‰±9DÎDR"QÂÑB1e„Á¾FÚ·¤êÀ¹JÈSAL€%¬` €2>ÄºëÖ¢Ã!ğà”úWhK¨$mä‰`4-7šÒQdd$(­‡Ÿ"_œ‘’ àqYğè2ÚÏNdeÉò¢V„‹,Èa®@µH*”(°g“)à]¬ô¨x‚#%<úõ³4ƒŠèÃ¯GB©eTô
-+;(b‡ TkŒSÃ$“'cc¸E ´¢õöƒ¥N!´È)L1úkbèıûãœ4l	¾÷ÃÃx¨ÀCKÅãe`;Z †BÄ£TÌ¹á¡3Z*)Ä£EµÓR>m†ÓÏbj$¤`=Œ-'ËÇßñ*lUğí”6
-+“ãp39bÃ,ƒ›zÀhrîQàûAÉW °€Sğ(¢bVÔš²ëãí7®D~ÆQDâDB”ÌhÊSğ2ÀR3¥¡ôCîµX€v¨b È0è$Å“(=
-+÷WâaxëD’Ó$N¶Z†™”˜eÃ€S ’WîoÓHÅªş
-+ÉTÂ;2J $§VBI2å*Å#Wr·”WQÎS2W@Õ2ÊÔTIŠ$7rĞüg‹'w¨(G{ÔM
-+A8çßr¬1•¸V³A˜²¸ÌOÍ0„»¢­båu«)btvÈLÖÅw”.#ƒ‚»Ğ¨2½áLwA¥º}”Ğ‡õº)L!Uång"s¢ÍM	\úªiì›;aÕ²	1L$&–1|K
-+GëXüº„¨ì—G¦&
-+°àÂZ]C
-+¸f4†nhƒç©¾M¬ìàªºÓGêJL*Í#JwôÊ–µÅ%zğp¿ì†f½Spğ……&p,ÊSº“ÿ©lb+#(n+Ô%M5š
-+½Ô`›ÎÕ5Æ;Ø+*üW¶ñ8/Àä‰Rñ‰UšwùqI¹y¥|¹µHƒ3µ)ŠAr ÿ3Åb)h)öÇ›fD0<ÀÒÀî@ÏFŒÒ¨YXÈ?!Ñ!Q¥Ğ¢„,,Ÿ…‚„	ÉE{ª¸v (^À*°ÎÃ`#CËu5ĞFÄğ@«Òr|Ğè89c1*yU+ŸÄR‘ åòØJF—ß²"ªÌ€[@L¼#c&“bêÜjCœX@à¨“£ê\)C@æ•+”e*dø)åm¡†Ç'ˆÁ´ø$FÍ¢¤Œd“€%æÈ“Àè„O2	B(0‘Ì£"Ä\È$2âj™å	#­
-+Ë0gàşø¬Ú£@ÓBƒÊ˜Ê‚Ú™Cu˜Â˜q9át…¬*CË² )b³²¾ldŠt0‡¬ÊeaÀX	ã…DI…Õ4²"{ùÆ·T„67ÀC-º|ÚO!á„¸â„ÛìË`2F·ÀşHóË¶ıá<bxkS‚Á`À”fÆƒúÑE–kVŒ5XÎ( V‰xó°\Âˆ‰¥X"…İdÌ¤„ˆˆ	÷fñHĞ˜0*4¢HèŠ ”SS–vì"@‰'H.]¨‡ÌI&¬&<¨¼îÍäpğ‰qYÙ*ƒ Óë7^ @â¥‘ë%rbøĞ¦+P6\¸‰#Akabó+â"º6ôÃäâ‚a£“fò2	$Öz…F $àX©[4p¡pwò"2å‰>Ë›OjÔª )‘,WáÉ0áÉyüNYá0Ü_¡(ÇUÒCòópX-(S§lx¨U”†2BS(VÄªb˜…âd
-+ÖDbIò£…Ob¤DP-z )1ããLªHŒ[gœŞıt:ı·%¸‹%å8Êşıé3jï0A_x%ª[Y6¸©ª‘Òmx± <ùEôWÑÔRéRüÄüÜR¹aBÓ«^SYCKâ×@-ñ
-+4…
-+‚Ê½øŸ§˜	”}/Ö×/2ï‰ÄîÄr¸éÔÉSTk!–	v‹)Eõêzq¸|®,Á/iD©Ş23‹b•æ¿ÃÄ¬Ñe†—Ê†ú¡¡ú„ì¼p¬±ÉÊ»ç^Ly*¾;³TqğåEÌDÀíıUŒÍzŠP
-+ôPñ˜»UÆ=q˜¶8#¡º	õƒ›PÑ
-+X¨;$0­ªğÇ•¦Êå£ÊUÆÉFNTÏ ¬²l(ì5 T‘LYüBmjÑeÎd“²›,’›Úôô¦rëßä7•›şw	ÎzPÿ×¯§B>U¼‰w>PYJ%¢<¢¬òÄ2Ğk„HôJ§zÍ±åF9N¬¾aCxDÉm^ã ¸8VÖ—ã¬ r!ñCš2PÈ ³V "££¼ Z‘‚‡¾UHD˜o|pH¸_pP¼WpDP¸"®çºÁXo¬P	. ó$¿èª‰vTğQ/ø%%İb~jÀ MœkC­p®ÇıˆX(¿Fåhè·ü0½Ò¤èpîÎ„a&b`æ–M#PM2èêB*ƒä4m°G€“q lt341áæ ä5EÈÃƒ&ldK!×
-+pE$ğ®š"Rª»4.WªÛÿ'ÂÕè¦K˜ƒêCT¿0êm>LÙF5m‘¢byøv1¨Ñ¶»ªd.?„ ƒU²Õ‡‡± S¤)W&—*m“#‘“½ˆØãi"6…j&T…åØÚÈeöF;±(ë¯˜‚R–_BmÛ+^¡$Û†G¯AB=Úš–i36ÉÏğÂûcò ‰º¼ŸK÷£½`<°p:–Q¨°‚¦”"3”¡eÊwº±ùdÜFŞ†o¢²^”W®·Í®t²Z9&?Ö`ª)„P>aTå£4gœ¦rÁTLPlã`Ã*/z£öB0ô¦¿äa
-+Pé[	µ±‚u^†l+øÀJ³¡"Øúl„]D?€OÄe“T% ¢$:İE‚À‹¸ã‚ÂB¼Å–½HOD¢h(õVtEª¿&X´É³h+,x*ÉçÂiâ—^±ĞÒÿ´gE±L½·"“¢¨lPÊ=P”Cg.ñ+üğ´1eïÍDµb(iÊÏ”
-+®õ@Ñ‡zïæ2™ĞÁÂ9T»&@|AöàÜ2”Z ú‰`6ò51m°é`h¦b‡!Õº@\‘±†¬)Ï¨ÔKt¨d8Lå¯JIQ[p)²^ğ8„¾ÙE‚²Ë2Eğ;2+1'Å–rFî«eUlR€{ƒ²„Š¼FN“r5àv*ö™l:š]JĞSğ&¼›gÌÆé#2E
-+#XÔ	¿-Z¦§ (ùKYà›¸H*O‡Şğe xÑ\c‚z•¦$M€ÇE‡{•ØàÚJ°€<\´×$\´ß \ÀtQ5/e~(	=Ãœ$Oi`ß&Ãd{¥¸¾E¶ÖÔLê­5‚ÆàMaj;j/E0­¤Î@FR‹\/âÂbˆ¥½ò¾·’.ÑÑ7ÀjÁGğŒ/«mXíDb/¤.´ğkóT«ô$ÿ!ZdÌ ¿&D¦a»x‰ M
-+y‚ø&$)Ÿ…=D>Ê Mc©l,“Õ?¤„àË«˜ÒI–T"K$×?j¥xï†…Œ¢òVÊdWN|ÈB;! <â!‰Œ_eS©ßuƒè ”:ïÃJ¨&Ô»ğEI"xbfHF"òÊá1\6:ÆBc±	XoŒbãD8õn@x.U,s}õ•OQSÇZFÂ
-+ËD>\^±4(-)|­î‹ÂD‹ÜÆ¯¹ÂeBN >ƒ_EE“e÷åcÈG!P#¥\RÒÈ0õá¡¨¢xÛ	´ÁR`÷™0ø£ø¦Øp”¥™™„H MLªÇ“¢Hn`ÇXñT>ğN?‚p&|CÂ£âÃC}|âain¼¯ÏPùÙI`œĞDàÆR86ŠS“rä!øú§%ÑÆ=ş\Ùeªš†²ÃG2Ê«{&¦!³‰$m„ ò±*7¥z%eà^ò]\Ê5¬¯ŠÈ *7%¬hòšöò…ÿü½ÿô•Ö6ÿè¥	èívR>“Œí+3‘Ú™B5éğ]*‰(+@ê°ˆ¼t½âÊâ$¦5] V} ëôÇÁµâTíş³0H§#ñT:Â§4,’Htá	\¸! &q%Jÿ4e™¦–½?ZvR>«`ß¿&Ÿ§QBçÏ ôß!ƒ"–VÉ¿Ä{‰MÀƒ	@|0¼üe±¸mĞAZiX:^¿¤ ¶úM&‚Â5ù	cB¼ÇØ4lp¤cM4oUh±a€A1šÜßk+Ê„à™`v¦Ø05®¿ƒ¨
-+ÊUÁ„øT/ üÅ–¦èÆŞ'SªQÕµ©G#b]åºš7"tR•ËĞA§6Y¦÷$L”¼ìPàúT^APC¢áà z†V°FVJãixJî¦ò¦õ6ò³¡¨B#è|CP|Ç€~­P;ÿbhÕ#ËV«›†Ê¥Iı•Ú›R ”Å¡I0”;  ™øw0¶¯õ?@´–u—ë“&u—·¦ŞxÀ’×;óD½?bC½Ñ Şeïl·i¬t†T©,x¦ò›J=q–“öóß¡™YUIcÖ033#BpÇz‡‘ñÖ!$R¹¤A¹!bürg@1uBˆbJ(øĞ^3ÈvÃŞz“TºÖYáX&4œŒ_©O½UA&òêx%áÀÏâÑ‚É*íeÕXJ¨õ•»§ÙœLsÊäÓB6,êOeœQy'4m–fÔKkpé»”O¯g…á]q’@ß††µ a&õÉÀ@%›*t—¿:BIÔê½=B>]M¥%‡AgÃ-ÃzãZÈÊJê™®rS‘W€ ´@¯'‡fh.&X º˜ ƒ"ThÜëo"™İ=%`õkìq†]™€xµ(RŒC‘N™$r¡ı=A¼e†›ÿ?™ùïÅR1ıi•‘•«ˆ†ïşhğf›îDÃ·Ê4<á€—LÇXÖÉX^–€ŞªV0aòÄhÒÒQ?¬>óËü9)d&M!¯€h†•8jğ«õô’y,L¥ôÙ¿_RÙ$T1àOsùÉzış—hËş\[êKà‹[n]c}TJÛÏ]ÿ“Y7€û¯§oF¡í);ˆ^{hÂSºLåûıLå%ÁX•áXïıIù°¾‹ŒÌ¾Éÿh4X
-+©„y9Ø¢¾	 pT ø³é@OüşNU¨ŒŸ©½–ŸutÿßıÁC¢éÁ¸ÒUà³x©©©5W{V¯¶»Û%öäËşUk¦ŞZÍh†XMmìj5ùFE]¯ÈNaÛ5¾=ëö»êõŠOóz	O¨i†úxzú0RØjÀÉj 'õÒ\k—Â­'¶˜»®ÛU“íÕ=ùØ»yjÚ¨†+^¼4V“Ëgˆ“d=›]n³3åq\ÖNº”Áêá£gZ0•Y¤Ö½#AkNN}8êG—Ä<{”ı"JÔş†úàm“ª§‡lUk§Àú•¿Àkt¼V|ûlğÌà­½Îœ>’0rOòÃ;ıŸ©u‘Ã‹Oàò¥.O,›r#pÇÔ‡Û|eÒÎ©÷Êãšº-Üº<iÀ÷Ù•ªµÕtpY¬x—ÏäQ€;¶ÜËÛü½,5ƒèV=ÏrU«‘Ÿ»wæFµ®õáÂm.nî¸t˜;)×lüí5š6úë5{{\ßÜañM5m%¸<në÷ë>¡¾­Æº{ÔZØêÚjÊ wzÈ¸îî³ÜQÓSÀ!£4=Ú	x&ç·ğóàôúBÂ‚«­g_ª­İüì±Ë!ï’Ø®Õ:*à§HÅˆÄÀ›ÖÃ÷y8ÕäÏ5f6KØnú"ò|üV­“ÜÚä&(mîôpg‰¢Ï¾1óCnq“ËÓ·ÕiÎ|.Pæ3!—%P&q#pgÔ‡k >`'Nb¬öˆä·ÙF{Ë=Ø³ìÕq{°nHÑS€¦Nc òÈßĞuf}¸ú‹®Xr,rÚP“1!…ÿFĞádûæ:jm0\eˆÀ›Õ€Ì¤/NëæS¸TûŞÓNÃV<˜ie­¦‘–HJp˜äÿè©Y÷…G=ì…+¶N½¸aj’…yXú/GuÏÅø„àÏÕt(x÷=§xÊé°ÎO¯ò´bˆ ”ÎEG=˜½ÿiˆ_™À’LGo9iL}+Z¨4ŠÇÿ.…[RÓÍ…½Ræy¼<±|_p(°t˜¨qS1-" loXe`Œ6÷©²àZ+¸Ê”½AHˆaUp0¼,ÛÄ…„0‡_ŠË%è’2Šáß«ñÅ„‰TùÏá¥4Ü©¢6¶S`aÆˆ0cÑ§œÆ—–' QDãßUşXÅ¢ÊŸı»¿ôª óşÜ«U¦}ÉîK²íØÖ¶	L¶£#“mí`›À¶µ³r²±'Ikë¾6NøMı®ğ· %=•ÉKÎqI>G‚PRÄf˜ğ|ÒÔ°¶··q²¶urè‹gÿ¶ŸtÆi¾&ÿä_/Lƒ?dû6ü“·,WƒfÿÎgS	ñÿ-¢Jš7ø“Ö¿‘¸ÆºürYU´ÿ$³QĞÿo¡•VçÅ–p³ı¢;X‘k¶£“›eİ—´·±fÙqìì­H{G'{ÒÊÁmeÍà²‰¶şL¬òï ªæ%ÈKvàÖoxé_ı^ŒÿCÌRÃáõÓì®æÿá¥ŞÈÕ¢ÁÕªÁÕú\5ájÓàj®vàê ®àÒW§F®ÎàêB]:ÔÕ\İş‡—¸ºSWß\=›xõRqõVqJ—>¸hJ—!¸ú€Ë¨‘ËXé2û\Œ—¥Òe¥tYS—uÙ‚Ë®ÁÕWérhp9‚Ëé.ç—KƒË\nÿàêG]Ôå©½Ü'ë¹ÉÙÊc-»t·fúù?èé4QcÇ“¢W®ıE»¿ãÙÍ¶«ÎûXõ,ùğV¡×ƒ•µù›0saäb•‘•ı·µ[}MĞ«úş]ß×ã+Ş·wg·äÎşmóîf«Ÿåp›‘rzøHçóSK¼ÆN:ÿıÒK¾Ç{Oà,v_Ú§ëÇÁ…¤Qwêíæ6ùcz½öï¶âÆÙ-Ë.Ÿßø¬İ4s™vI¹²ëß#v/™³=ğòş®‡‹ó5¼ü_©­:}ïAĞ ÛW›7®	[d´§ÏğËåß„·ô{¼fWÔĞƒ¯Ç½:ÙÕ2fnBsWµ“®‚»Q'¢ìïÙµÉÙ`{æŞ±Í¾zì¸G£v÷—¸§
-+K9)'WŸQÑGûjÑõRâã“hÍ6ïcÌß«nÅ\àSóIûF¯¢	áeú«;?Ñ>quÏuªÒ"¬}Kt‹
-+Ú¼¼øÆ¶ïD¯0óIìE+fû¹ä[—}æ=üK§xõdNû«WİZL[|¯KuKÃ¬’ZUi!îŞf)tßÒ¥Gb8ßWºTñ˜–;´ÏôŸWqrzuÇÁFSÎ1Û¨J!¨J¯Œ×u·ˆ6Ó¢×ìJu9ûhn¿#C¿7ç]ÔeñkÏî¹íví©q^æÛi¹ãüÌÇ-j+{®š;¸£æë1¾CNÍçq^qÕR__¨|rÏ‘÷ÉîËú‹+6¹c¶¼¬ÓŸˆh2½8‘háÕYUnU¹ölµùÉ7OTrëÖşŸ5<smàò…ÓëV„ğIü|5ğ¯.Kô6[­=påUîE—Í“7wu©ô˜Ã¯îbœ±n~^áuË°N^ø¸9¼{ÔİÈõÂÓo
-+é^3ßK§­®Uë4I¸¼²ı–ÔäòU·jÒx½ŞÄ™©K¼vr®ªœØ¶õæeO\ïZ…Ju»iÑ=ßé¿mÃ¢q)ÆnØb§H’:8œœ¾^GUå@ÈÊm
-+œ`˜’r¬KVĞŠ«/ªJ`¨J½6åËşé^i£ÇJÖ{µy½ßıìàËúÅ|{´qß£Ã¼õŸ>Ö¢?i»ÿ4oiÍÕ™to^Œxr©K~\åjUYÒs:¶™¼{İOíõ®öÚ+§Î÷Éi96»Ø¾ƒsÊJÍñ6B§ÅUenUeq®ŒÊÃÙîD~²¼\ÿÑ¶ÊæÁA×Íß3º ËŠG‹\OØŸ2õˆ˜÷ÄéÆ‡3›üZ9Ÿ1Zó}d¤8‰}³ï#,Ö7¯®-_ä&İ²w;×óæ³e.û{óîNjßzc@7ıüÉİ’.¿šŸ¹ê}ÀÊä‹Â!S¶ËìydœªLª¬uCßìY«-×Æ²ç§'Eyš-¼0âû™{7[ğ¨¾;,G]¾£ØÆÈ³åi«Yú­Úô|éÚ¾Síı§~3uŒr?*
-+××¢—İ]ëÉÔ-[ìãqMÍzÓÇÛsg¶1;¿ÅpjûãûÉÄ}'¢6xuq5æ«×:óËfxL´êrqÍUŸg:>äÇƒìÖÛæoêÜì«ÓÂºQÌöœcÛ~‹»ÔµÓëÍáÌNúë8åã»ÕU¶`\=~!ö_Å³ÁYóRoNÖß°á¶”µ:çÍömS«ºÜÍ¹xí³xú¾)%mâ%Yº?Ò¶–ôğ¡ôCDË=gËnJ$LËgÛ\¾³à˜¡y/“)7Ë–»ôõp÷5ó.Ïté’4Òâãê£|²vxH^X~ióaİÅSvŒ©ÕÜöÙ1]9Ì‹üâº›Zë+¸}$×)No­šÚ jj~ËÕÔ|?«© ÏÍ58ƒÔÔ¼bÔÔ€{~şjjşÁàóğx*>³ÔÔ¼‹Á¿Ã€áÜ€±Œ'°èşÀ‚úŒë`lûçÍ~ ÃX8—Xà =pâ€£µCM­å$55(55‹ç †	¸N¨!oªãnàˆ¬í$ ¾/p®ÂÀXGü$€ãy€×Y`Øá8 ù [À¹íLG Ü×ñRĞfx<Õ ×Ûjjí§€ïÑjjZô{ ( dø +€›áÓAXÓsÊ²Ãq	=‚Ó¼Ç¤=Âo•ÒL¿wÏëO¢îÛ¦ÙÎ>ûYÎœÜÓ½ÿYşğ_8ÿ°õQÀÖÿm|[ÿ ¡ÁÿàØ›Ò›óB<½ s£Ãs=}iöìÓ¢UVj-j²&¼Ş²({p„M—C×NzL;ìèà×úØˆ«×NWsœ‚Î¹¤Fô¯0XãqUÒì±‰Cˆ-‰87krnD”ƒÕ9}í)ıûkû´úv»ÉÄˆÅóL[˜Elzâ<gı·ì³EÃsm{2Çz•ŸİbàH+±;ÄY_>@£WÄí}ÇnÌUh0¨¦¢Üû$÷vìÀ+^.½>®êá¿Õ
-+×úM¤å¶î¥áÓaàÆ‚w‹ÍŸ|wøAü«/‡]ì5fRü¥Ë^Œvwêö—Ç¦îÎZ9
-+—X$,^K.y¼äCêúÌ+×–WF­Ñè]ûôNÀ»wcÄf0-N^6}©å“ÈŒn—®í‘Noµqôñ+‹×X’u—E˜Ÿ­Û?zjÔÌ>6ä»n!›€'¨EçõŠ:Rvî¦dJ@JÓ…vNÖŒDÁÆ•+ç}eDÑóÆ–[Ï\šog¬Ó‚yêsìèíÜ¿™TÚJ.Çj'sz:¾‘v!Íá¶n­MŒó7O\$yÚnĞ­øŠ…—ÎY¤fÔ–ö´é×åÚsÃ-û¼dœÜÅnÇ‹*Ø{Äç„v\ó
-+^‹+3/~ªEoÔy½wä‚;ëº[îà.é»ú¨9İ:«¢üÅ¡¸5»N=%‰Iù\¾¾£àÔ×í[&÷úæùt¬aÏ)e|ûÄœ>ïyÈêˆó}êÚİ]îøfµåØŠïÜÇŸ—Œîú äÑ2ÎÊ«´ˆ~iœcq'w¡b–…j5Y>·“=·0¼=—³­™Ï¼oÁqZ^ë3´{U£–u9ğpYÜİµ¦‡BŠs+Ù±=KvëÀ‚coCØNNgâLF3_ï|ÑË·«Ş*°#ıç¼±¨vj—Ğ&ªÍqÃqŞ÷ˆc®	ÛeßÙyhÍ—f}×I/…¾™Ñb0‘»P'ìé:zÛuş7ùQ)£¶>&#ßé@ğøcÛâ\!­bŠvKÁ¬I³¾p>w×Ñ/äİéF{ó·Cİ7Á‚Û;¶œ:tÓrŞ.ş{+{I|^ò²Õë¯»ÕÔOMé•Ú91LoÒË•¥g"OùçüğŞìt¦6|Y@FÊLñÆ®Yçzï2"A˜AlH84osïc’¥ÛŠFDœP8aÃqí:aÎöñÂ7A÷|rñÜø²bİ¥Dñòïëv8t·ÚHkyvùåÖ¶z¥‘³‡œè¸õ¾áëïtn…Ş¼ñÓ¦Áq¯¶z.zuù¥ËşÀ²ÚçãúNá½,:?¾Ù£}Ûæ¸*Ë‰x|Û¼GÅÔ=‡Tñæ¼}öY/mUmÌ¡À'‹ƒ˜ïÄ=\ÏÅe…æ{ÆÙö2UÚ~mØ¶‚İñQfº®{Ù½X¾fı¼-–'{¹´LQ½õy·SÕ§WD˜–KÓ=´¹7£–ñÁOÚõkù¼ìx:y\¦v.êAİI›‚ïN½×Ú˜?¬ó„¯#‡uÒ9¶ñÊ•gã›õ´»Ã¢~WK>Ö°În^¿ãm+ÖMÏùH¡DÏ,´R›p÷K—lãUâæ,>·sÚøõcJï	&ètì²(4üÛ‡q½2{‹æX>™;NÒÙdİÚ”§z¢¼ïCáóÇ—í-¼¥•ÅçÚ\¤UÅ®Y3®J{Ïåó)KloN¸°Í)q–î­êÎ^QÕİ8Õ¡Çì&|ÜÎÓZ¹½ŸúÖÕ};uŞ7¬ˆwSr¥Î¾z¿¦&û¤CQ÷Ã7ßY9÷ ¯'®Ú·7K=?åÅ©Ëv·[Z^ÈÉ(Y¸j^ŒÚ“uÙ-ã~œ¿óÃÅeç¤×éj–ûåt»æ Æ]õ~GüJ—{İeå˜è¢qÖo­âf_Ù”Ï0ŞµÛH¼nÓÙÏ#&ß›8râ9µV“Oœİ¶%ŞmëåSÁfîzĞ¾ y­Í•íó¾Ì[™°Jçúç¢XõÍòè¯?=¿yı »ùŸŒ›ÕÍpÔÎ²=ñ®-{·Ê|bØeÖúçU1G=›'=Ï™º{èmßë£û;©ï?“1²¤ëG‹—E>=ïÛ;
-+
-+Ş¾Ù‘ßO÷ÄŠsûõßØT^Y›´´İ.-ºn@ñİÄ!¢-~Ïûìm3>ö³ôn®í±ËZôİ[tÖÔ;©Eÿ¼½p±éú}Ÿ¯Î:{!(ä{É–¹)Uë
-+f,`XºÑ*¼²ĞuOäƒ‹=c³üíåv×ÇE›ş¯cÓŠF»VÔöx"±x®]Zvü›õY~´èô¦69·8ï¢ì¼|ö©˜.>ÓfoÜ¬¶9a‡¢Ÿ•yyÀÓÎşvsÑœ’iƒÚ±WTæÏfö®ÖØ"ãf˜Ós Ã@¥ò:Òe¬Ç˜¢×Œ®ÑÖïy ú«C‰Î4}“÷P©ä§eEÔ¼_=¼›Û_7€•ôtè¤€@Ûñùmha¶ï»ïÀÕ»1¹KP‹dÃâ¶¶œnz‹Ğú®95`bQ‘Ş8{Òw×J¾.'!ª¨¿KÔ-k—
-+Ëšï^hf’Ş7 üØĞİ¿s+4Ü>ÔÄ–{»ğùãŞ¾°:ï%yë¸÷Êİ±S·qôÙ‹ŒÒÇ:ç	^jÓl_èùÒnûş>wçÇ’G®‚òû¾ËJÏi}õŞË,KÉÇI¯N
-+¶ªµpÓá¤ş–¼SFë9ÕSË¢mòÅ»Íz³b†ííåÙ‰^Ìœ—»Ugaş…<WõcLöÔ¤NJZ¡5Ëæ'Xß÷<İ!j÷Œ¯‡&œß¼C:úışı›\—ïú0yÈê=™w–E~ˆh&Ìm/±¼ÿlBÉ_Ö¿ÍL¿“9·Ÿ Uö£¯}¿¥¾ÔYke³4`Û‡Ïk¼º×$ÛzGFÛ¶HZ<ôé.£µÍ[˜™2¯˜à|1û·•è¡ØpNè¤U·Í·*íR}aKêÌ—=JzÅ7o77{Ğv³ƒ7ú”ÜÛ–7I/zõ
-+ş«Sçòúo®Û´bôšç±öwv§§•¸ÔÆ8lœ°qáM/ºõÅGL´yáy÷îÅw#nu›ÊÊoÖ^¼••ºxáËÒDÏÃ½;­Êã9Ş›¼£¢Â¡Å¾ëWLF/ÏÎ;ºwX;×5sš]ï³³€D†~SûØönòü†ŞÊ±—Ú§ÃsõÓÕÏŞ×ülä‘°íÜŒï>œ¶8¹!ãä–çiÏ¶­ël¢QkZX”«}¬< €¨ìœ¡sGkı¢"©¡hĞïwöjvÎ®…‘wB­ÃÃ+†V¶Ìh1¨57W¿£QÿS}²Ó	lŸĞµØÌwÙ}&<#æï:ØùÒrï‚Jºê½üQ7âzUd8é„Õ.µ¯êíÑÑ¯ Ş+w­È®Lvš±³U¤Ó–uû¾]¹ó÷ÆG)îóœÒ¿ö½½Ó¾ãĞVx­&¼ûíœÓ¡±u+×9ŸøªEg*¹rcÁ±ù[k†>ı:ğ¹CÚ´¶ÏS¬>&Gœ¿ıÑF~Eòƒö¹ï1‚LÊ¯ôœ?pìæŠ}÷Î7ps¸ÙùşÜyz5ô~û†mù:ÉñÇ›c¦Ì|úpo[îê	´œ~·3ªLwh·ù4ÜónÍZ£ğüÓokw¼Ø^Î9»äèáOx]ÄÜä'×ö_ÛUMÏ³]ÜÃD‹~mşÆ™¡{FİÿöEöÂ)‡›åLĞK8Ğõğ©éE'¹Î¾Â<¿XÖS‹^å¶`áĞ‡JDëÿûå—^ƒ^}¼z“Zµñê½G_Ín¸WHWä<ÜñÃ*4O÷¢û3Æ™ì¹{C+¥=¬®ˆıöı^¯CÊvœZ"LN¯÷øu>7suIËlÚ§f£t=nı=£ïöåİÕÍWßšü˜xl[iıwì4—]]ÓÖëæ]Öèqj‘Nü±CwGÌ²ü2Çn¾G7ŸOß¦
-+NÉKZ¹m„Q—Îá-¾Õ•T]8ç¿F7Éûûë™¤YZÆÆó·—š'Ÿ?\\˜+ş«»-ı¯“ÃyñFøµîoíé<ã\nŸA>Éqƒ&‡àî<²Ùc‡†—ÁDçË’+…ÇOl>ëİ69Wb·Äì¾†ŒzÌî³F‡Ÿxôæ§’jé»Ğ©ùCÔùç—oš—0òKË"îˆcı“Ö÷ïı¬µiÅÇ9ş§“=]ğæk×º¿ã-6_2
-+.øanöœN,jYüví_™eÑe3[t~š?Øuû«‹×J†¬º’i½#Û&nfÖœ._k§&oİ‘’#tË”g‹o=ît3é=`ÀÈU‡<|¿wı4¡,ÿËizÒĞÅQ1K†n¹é7wöƒ×Ø•Ÿ³ºŞâ_yéşşú¢õì/îx3vÇî|‹D±eæÆÌDÆÛ!w/WšÆ¢;N¥NÌÊ¸´C7ÚY¶7ßın\¯¼‡¥³–ïZS1¡îDØşsG¡ÏœYµvÊÇşíª-†GŞ›ŞœÀİğ‰gÈÌ˜2sïë¯W?u;¯RcÛ"]²,×óDQ«^óÎœN;6cWdş«§Ÿ/äyxöÖpÏk÷¥Û¯,L>ØÁnÅÜ¢°è‰-­k>#ç 'Ç¡¢†o"Üú`æ›ïF‡g®ºìcÆÃUÑ+µ»Î½Ìüp ÔçñÆ×¬1G>İ4\ıuIsÁ¤¢Wóú¿5á€u¦d:×O¥ÍùôU&ö,‚Ui³š›é­H:ãÉéq˜]àŒ™fıúÕ|ì’°3±eÇV¶ëdç/(œÑf°ùØ)µy¹‘¾íº¶+Ìšò¥Stø•³”9óèìó	˜³éÚ³
-+‹Vi¯VÛæÂ“Vz™®è¿Ö#;ûæÑí«jn.ëú„ÏxÕº™Ş¥…]_óë¢9[£÷Ò8B—ûf¼I³0È{zòÜ—;wøòEgş“ØbC-úóşúÁ^C¿yç[Ü_kçs$é„$Šlnü|§ÿ¡›Fú~å¹¾ö[ØãdÚÕ¹[VT¼!ÊOlqN7ÿÁÚ¯-5|®úxjÛéî³X}|\æ¥¢•ó$‡ëvHÿ¾qÿ!å76YÚ¼©5ŸH–¹_»],NéıúÁ©¯PI87+`öï¦W]:Ëx½ÁÑ°w;»;ß“Xm[>¡÷ÇÎiéÎ‹.~ôàäÊû,Å>×ªÎœÖ¢ŸîW¼Áõ6]¯®Ã¹óNIÖ×İÌÉL»õôÚ¨_–êÓÏ$íDÕ£gó›_2{tèƒİ¨ûZt§¾î·$µèé§‚wˆ4£LO3=5tâ`¿Vœºu?ÕäiÌô8M;Íû;ÍWßŞcêÓÙíwÆÄ½œ½bşÜİJƒO.`Şêíê;òÓôpJë½{*öZX¥¯EOÔìïõ7Ï±äüĞc39—®ŸgEôçöu>¦—_+ºOŞZóÉU‹>}³­ŞÓæOÍú^ä{-ÈJÛá$¼øªÓÁ:Wı½ûçg>F^«ê~{Q¬k•“…ıRL‘ÄÁezÑ¦~Ï7vúæ¥AÍâuC?»{µı­ç,F¨9¾gO`§Aj)ùÚOüÿ8eõ÷ÅÊ\ô;Oú5Ëöz<Gãşs=:äÖ|›z ÓªÛ•ÚÖ;¬‰ÖÓš³ºK/IãQAë3o^Te÷p(™ïÃ‰ğ±'kŒ­Ü/?ÄÚ?*hòRÚ¯¥¬í§fÓ<Nèpu]vaF_·•Ş‡órµè‹i‡5Ñ^óÄ}¼Ó|›|¦fŸ¡§EbÉÓ¼õfô‰Zt‹¿n°{¶Ø|ó‰›_õIGvÏé'?UŸ(½¹‰ë’ºá@âÉí–ÙJ>´ÃŞ×a²Æ6¸•úŸVK¯Ú¤Î¹íÕ<îÇ™;?Ì]âfì®m—3³¨ä¯’Ç:/y•GM¬rÄí„÷FV†FìZSô5ÿÇ`ZÒ¢rè¹÷3Ò¶íè]4õÄÍzÑ–½ß9î|Yì¹Ù˜0·>pÏ#Ã ıs­úµ¯á{ÌÆ±3ì|lÍÁ¼‰<.MÑİàTñnóşcue’ûç\>W:„çS*z»Ï½l6²:éøØİV·ÇœØ®í.çëw¯åœ¾ğJ«‰ñì²ê2-kŠ½aväèğG¦Õj#w™¿ûH²íÏÈyÜŞñÃi£Ú¤º6Ú³*%©óÍï†¿MXí²Ör`Ùi‘'Ş.>_¦3R-âYQ´óîƒûD‡Nx–ÒöÛë^½®Úßø–]XZão¶µ„áY÷uväîâåáıÒœŠËÒçÜ©ˆÚ5ÙäFµÛÖ]ŒAëöG9†ïÛø:»h¨f{ãMÑCÄFf½\PUí²!4Êîã›’Š°ñu•‹«ŸÿàOËcè¾Òmİ&"mZÔ²ïg
-+oë-@S#r¨m^¦©û¼õ-5n;yŒe‡5i-:‡hÑÇ…˜Ô~¨|74è1Ÿ/š³Ãy“†¯æéô^åZô…ùg´«5çùN\ÓùHM¹pj¸©±SÕı1º!+=ikM:ZÏô[NøLôË×^í¹h-tò¼Â€oY«ŞŒ1I‹¾¨ÏNÏ–5¾ƒ»D-Øy½[oßIŞŠŸúUŒ[2cç•w»Vnê1§jç†ÑjŠÖ{êúËò­ë§Àä3İ	\lkxïûÖ_â7'å-×¹÷¨ªMyêîC»³‹Ó^mÎi­şÂá‰Z«^ûgë•ò•°Mõ7{ÃInybiÅœ´IËê.Hû8—–ÎHû`Àˆïöš-¿».lÇÍ=íìN>Ùt³¢ÃY²nLîÙW·+ß&¿šÔóºİ_%Î‘ß³Ïs&y½ìı.;¾rµæ¸ëÃË¶‡i´mÅ«‰ÚVps~õ³ÊÒÃ/¾§²I1}Ø½Äñ+Û{İ++nÉ=ıOÓÛ±Òƒú¾+6 uBi–pø¶vs}·Uç’:çgšİˆp~«Qº¡ì‘³Q7à›Õ–ëÏoM}pÎæñ‘Ï­×tñËvtz>E½øz‹¸g-»rÚô=;/ÆÈkøË¨àà½™ïj¥—$A-²íw?l]½Ùmhû¢ÊÓCİMWŸ·şzÄ´’rŸ!vg—¶’ç?´›—Äìkñş“7;æqkMÇÌ`·2Ú•{ûş¥ó·ü¸whÒ«ËºŸÖ-ŞµìGY·u‰º§¸>£„ëºµI¹rï¥1yåAÊ’†“Üeæ¸A¥ÆêS[›4¿QÈ7j¡cÙ±xLÉÛël[z6vùC~P…®º¶Á”õDßãZôBZ¤÷´]›\KßÜBCí"Ïcİ:;u{|î”©gˆ«³FM)Èí8ÏäÀêg>ã¼ç ­oÔÂù}ÆQOßwÍß-½Ú5èğÆÂf'lgõú4­òÁ“O¬}K®¶MLé´£°bRz¾İnÓ§S—Áú­÷yèö¯Î»3õ@b¡>õŞ|\"z2Lã”oÕ]KfÚU¼ƒ|÷à¤Ç†Z3WgkÉíE/F×Ûò³uû¶CÎùgÔé¬+x1sãk-±"pîâÁÖîÓ…ğÜyÍ.G˜gÄU¤D–¦m+^æ$6Û’z±l_¨t¶›ş‡ÁÚÓÿæÜMKqê‰_æ‹–]İƒv|3Q{¸Ól§Jßì~ÁÂİgzlé¸ciĞö,FZ~ñu¯X¼oóœKüì›¾1·{ÖTóO5—¡:-‡½üfåïÂ±ñClâñ‚Oï¯.<cRõæÌŠôû­6Ø¿™L¦¹˜é ZNfyj¿Gf[·ãö™|óÊ÷½Ü<??SRô¥£O+ÚâºêS—‹ZæU¹/›ôqÏ 7—='­>z;tÆÍ'Å©Uw^OLèœÿrŞ³gN-M|lg¥çåĞFq2Z;hïíwÒ÷HÄ–œ«\AóôèÈaŸ+Ï¾×ùÁ0Ú·»ëÛóî\?šÑÑ¸’ñCS{g•&±ÄCÍéw/^³ó¯ôµ|cQ³}ÃÇny7IOİ–w4AxÀı¼hZhQ˜ßÖğĞ¶±ùÍ'œ:™9m‘(Œß:¯P5 “õ•ÎEšs‰õúQnìñÑÌw›‘ÿöQƒt'äŸå›uZmèìßfİä>zÚá§?˜åĞóÍı,‹±ËOö}‘ğ¦hıPŸ
-+çœvßwæıRwm]ìÁõK)å'iæ³Vç­Şp ÙäÎfümÒ;²=ï-çF´ñºÑlG·M³ÇU¼öéGBÔ’>-ãr¸ä¢õ;.åUêçÜÓ=ÌÒğçCNO5?hr™È¡Eî«37nÎ}jRÙåëôCìx	-#^½/O•nµËñÕ xiÊfápÆÑVÇºO_y¨M·±`{¡}á:—à²—'Ùz¥–í×e©Ó{<ò|¾<;¡¶İ]ï·'ç¬ïáø(iå¤V%ŞŸfÍ/õùÀÀˆIûw¾c…±ÍÂ'»®•î.Ü\³y…Ç&¾Yğ7ßÇoó^—NU¯yá:#-7µÛ™*×a/J¹o>¾šÎóñŞÛååµùA#YCF.›Ü·ñn=ö/;~/yİÅ²7k¾dŒ³¼v7†÷}Áı®ıÒr"gæ9\Ÿy5ky_]úáÆ—V?æ>k¿DİÇ6oYeüöæ›fŠ–Ø?¿âÆ»v}*ì°ã÷dÿhÃOTÙ¾µ-åùÛ’¬ˆº{¢ï;´Û÷vp’p´»íÒ{?·à¸—İuü¦O'
-+ú5ÛÙÿV÷9²¬f˜ÛÓ#µè¦&¿ÒrgG2¢ãÛ–‘]Æ
-+å}¼;sGc£öé³kæ¹hÎ™QxF‹¾vÃ Ù³´;úÙD¼É{gê=B‹>WÃ2c‹_·£„k6êÓÙ_‹Ş¥ÏçaÕ½r'Ok1Yû³Ù¸…SNõñ½Q÷šñîôVş‡\æt‰šã-ıèÚ[Óÿ|EEÁ¦%Cú~q«¨ıÛ~õ»äïŸ›­ÌíÜÌÓçŞáî–µ®Ÿ
-+gî«ÑTçÜLì¼ïÇ÷ÉÀ«tÓëºd§c¼	ìİÃ¢òÊŒêœïKÄcÔÃÖÅK+Ûşõ~ø’£¯§í?0W0áétN`şã~Æş¶û×¿ä?^|úÈ‹‰¸asœBÎøşˆÜôÁêú'W«—¾ìòWœ'é“KÉİ§%3¶®_s`ä(-º¶H‹ş±½şğå&vm[-5Ö®éóv—sèÓ./æ%®HÚ|º£]åı€>LvlxË+SìçZpÖ®H¯ık[öæíÎnZğZÇëÅ×à“o*Ÿz¸Ñ§ÅLâîµøñığ£IoÖ\?|®èñ–Ğœ¹ÇSZîèx–fç(¬Ñ,µÒşK¾•a:(1ı–Fçè´ñC{Œø¸aØÃ‚w·¶ÁJp˜á}K\ì[İy,lU3çê2×»^!ÎºİŸL¾®qğÖáà‡›¸Ñî7cv¿™sÒUtĞÈnzùé]ƒú-6	¦{·¿µ¢âêëçwgdŸ»|Ì÷aÑN/¾¨ÿĞpµ»»3L¹ˆ²K5º-¿2?`ç¸áêS×–-à{wYyåó‡¹ë3*6ïpfU87*\À4íğÚîöDÎ”stcvq5¥ËôcŒŠÒw®\¾Û`¥N¨½,|ıZk¯İ,ÙÃZô88üvßmN•óC6•öZ½SÛø^äNÒ­…¥Ñö¹éwßMûdwğà”±Ÿ®~5*Ç=;ğã¤mÚe~ûö£Eô·`/¾çgİÙçëÚsÌí¿uìäò¦vHfİÖ’~5“örıÿà‹g¿›ojŞïÄuç9bMß{öÆo{°O² Ú³KìÓµç{DìšóÁ}óåèfí$©‚¼ìz­·n)œ«“u|ŠÆùJVİ‡YŸ\NœYhÎY2¢ºûQk;ûšÈÛ÷Ò/¼œı8UD_ÇHÑq’Î:”Å_Ù×ğ¡ÅØÃó®<,Y:`rÊKë™m=ïç¬š‘è2ú{TâÌ{«
-+2ƒ"7T=¹sSî¬Ñ]¿¼3¤ÏÔ^Ô«F²`±Qô”W¼¿]™´½ûş—¢f}¯…®y³nÈÔ¥O>0ŠO4¦å­;Ùéí¤‡O³}Õ¦zoÜ?kÖÜo¯³†;úêÑ 9óÅ'®ÑË¿¯_qúªOEÑê’‘Á‚Ëæî\|%nË™5=Hó¢_÷x~öÀ™XZoæ®ósFı®Eß÷´fŸ×òîvc“®íâŸ|Óic³¬2ıÊ†hî£ùæ¾_·¸kğØ€a+t{:ùº¹Nßçw4§yèÚÛÎ˜]üæZ© ‘Ò­Í‘ıD^q»BøªO¥1vîîp¤pzBkÆ·¯Ï¢f„½ëŸ]ó^#±ÇqöĞ+¦S=¹3L"#¢Æ;s€w¬;Nï˜Ñùns†¹¥–ïÕVßÍ¶ï4}ÖÔ-‘+ûŸŞßÇ&´8 €âEÛ¿Ñc“ß•Ñc¹>çŒïE\i[Yì4ju÷~_Ók\N”½ır$ªîC…»ÖåXk¯Ö÷JHøú|ÁÎŞfáwç†	Ã{¤ïúüÔx1™?¶F–C·—WõÎ ¸6’x»ÿÔ^Õk£™æ-—%7Átó’+'~_Ø/öfA\Ï·µ÷ŒŞm±èÔ.%_¼²J£åßLûQŸ?ÆíüºeŞ!‘ËÊeÏ,ƒ|†Y›8ezz{û]O´“¾ìè;ğ{àáÄ	)gFt¼ûìDiW9`õ°|má²(‘^†uÖ¬o©Ìºå3°sÑšÁë7ŠªwzêµÕ°jÌÇ×a‚c7*R£·Nººñ/„üıööÃŒíu,FPÕß¶‹MÚ¸V¼§ğæõä*ã¼söúfßßo]ÔiäéKc_ÍŞ·Ğ#³İ[ëeâ¸YWGï©Û{5 }”Óá)©âa¥w¿*ÒİÓq÷ßÛoW9:'ıLQä‡»ï!ÿ%§“ï^t¶¿ÈĞû|éïØN}‹ØL·ËÁ™×Ü‚Giæ.½¬¿Ë[xåİ!‡”Í“ìæ¯éwîÖ©/iÖÜ›½­ŠSé‰Õ3–|3Ş|§÷ÏÊE/˜˜µÍ'N2™mb²ıÁEWÍKDÎwv¯ò{ËÃ¤Ïç/„iÑ­B§äoì°!´ğ„vÀœğ3ú¹¦%hŞ÷ÜQ?¦ë§÷6j´Ö&ôûp—›®êĞ_wê¢õ¦]¬'ö?sœg²ÕíÚñ>.ãIİøíî--·÷ïüíûé»^+>LÍr¸qWgarpÙ»}&EìÓ´ı%ıÔÙt$MÌÍÒµgÂ»;7OûñPQË%}î=Úúñcüæ§S£#Æ¬‹¯l›ü¡™k¹zİü_Ÿÿ³2ÏÖ®+]ûÌ?°îr¿eZtàO½~¿+ôj’Ë ï#.íÔ)œ_ÂoQyC¯#ÓëÎôk».èÛä-Vß]^ubszŒÀ¦è,¹ãÕ¥’ã~¢¨IwÏN+h£^tÆó|ÙDÃ…Ç®&Å½Ûtyf`~Ÿ¬K—î=_jÓ{æ×Yûí­bŸò­ëí<ùÈ…¢OWÏİ×¡ãÇÉùEws«Ö¯éáx$£b‰Ï\¯LçûGW¥êuôŸ’HûæÔeB¯®U7z­áNçZÚc§Á£y÷x)­¦—~¹¨ÇµåÕƒ´èS.¼4?±¸¦£åò©ş«ö%îª» yyA¯LÇ§NÑ
-+çådí¾}ËèUN?ÿÓŞ—ÀCõ½qÛ³ÔÒf)#KÄfŒ}‹¬‘ÈÖ`,ÙÇNH¢…6K(Q„„DE¶ìY²J¥BHRR„zï±Kê÷ÿÿ?ïû~3÷óœå~Ÿsóœï}Îğë#\|Abw†’¯ZD%bÅ¾nweJõ;yÆ!Öæh¢İvÿí’ò‡,¹{Æ¥tû3MDO…~k˜°±<\®’rûl$4n	ÜñhÕ¿ó\ıMI[Õ…]øm†É}îöŒ
-+Š‹»böÚía®¼.ÌxQ~÷âMÅ~O»Z
-+»Ò¼S„{‰w ×7ÇÖRi¢¨ävc¹´whF<$;D%§ÔæµKœâèµX¦ƒ5æTç7êÇ\Ë8~"»ÛÉÿ’bíƒ^•*ëvŞFyÁH/µ‚oLåMìq­:ƒdë½ToÓk–c¸•VCå9z©hB˜ç‡Y:50ø•æÕc–¾¾m”ÆmUšÌÑÅ’kDœ˜†uªô…ù¶HïWİ¯pÅg¯—ËşóyÂ¡‘®Y|MHÁüŒğ…î#¥9Ì'îä×¾ghËÛz @ 3â€]qöàñö=ÛnZ~Bœ0©ŞàYQz[¤
-+:5ø°«t«Ce ªztØ&@w‹%‡£Xğeú{ÑÇ.xÜ‰¸•›k_Øxø Å…ıôºyKLóğ¡ÄôëbI»›²ß=sÓÉGªhLí¼Âw¶û”AQÉ$.É©M/ƒÛ‡ÍŒ¸6f`M[î²*—{qˆy«~ş={CõVog»®s£‚4º|ˆ>evoı›ªKßKv»Š¿{~RYïºëÛ÷wÓ¯/M·F	°~Tgjûöô¬“È{{‰º¯PÕ»™ì±²Ş¹åÇMå^ün’tæI¶C·mdû÷Ş˜÷?}CË(¾Ü¸ÊvO*z,Y%›Å’¡Éä&·g¬ ŠŸ_ ¡I‰usıìöäá>ô°…“¹ğdO£ÊIé˜öú_Rò7;¢Yå4µl,ÕöVöóSÃ*˜YÆ™8S”'Õ?yÊb˜bûğÇ±VïûØâSvënI¹±ùHKì™6«¢ô	-LB|hZÄÛ2xÑ-c?AÊÛaCCM[7×Ÿñ}šùÍÍbı/àmÉé~ZÒ§‰i¡êµu<@M7CÑ¯®‡%~¿†·\V¿,¡sm¬F2%j+cSxxW3rhƒËn1d«¤È¶ªn[qß‰Âµ¹Åô|Ò¾\Çt•Í”-‘J­|Õ¤IŸk›­¥½my·¯Ïôt*ÇNªt±œ"ù´Ñ-5¶ÊM±_şn¥ê
-++O^[óîø©‘Ğ–Šˆ–·û™¥˜Ë_¿·LazÄn/ÜùYr­q^RåAéÂ‚s¨~Æª
-+•x©ßÑºGæè¶ÚzjHëa€	÷Y±ë?,>¼9Ãòénè[	!“¡ÛÕŸŸ+®í!©åçCÉ}P+|òë®|rj—kåƒöØğ!Şc6\ûÔêTZêëëTøZy”x•>³ÒŠ½š[ÁÊ{Ö*±©ªn"» }»àÍuºO®ÔšEöÔ~®fäy±|!?3$pRæIdJÊş¾´hx§V®õ™G[Ê4‡XÔ×	ğ“¸G§T¬êk¬coÛÆO÷sÀÔù‘Œ¸R—ï³\v¼í…”«i¾f<‹R’»ª¦vÑ¿Xü¹C«_öáüÖ^/5+ruWe±‚à»kÖ^ã¥S4¼²+Zhƒí¥†gùÁµÂY}1ûëÅlO4¡HyW”qùON©pØŞÊ½åO×<ãBFf#«}rE6i_Å.wbRfş­êM²¥ÊÂ2?m.b3ğ"ÜÁ÷kıÌCn*ìÿŒâ¡F†‡Öìv/7–3?yööqÁ—i’ÿTq<=,6à)æ®}MôMÛWš¯ï©Ûd#N’äHñxpÊF†Š=¸póK,ß¦Êpd¼Ç&HF²¨›íæBöË§Ì›ï—8<äØ›ûë <à3mò¨u¯­Ô›M/³Ê›„)itº·Å^‰mP|GÉú‰«;^¯5äyÿ‡<}	x•™MÉ½òå¬$)/ôcK¶g‘œ5XOÛ®p}ßÁ>ßw5ç"¨w-ü‘c'Q½ÏÌëÚ’¾<Ö§9ÊÜAğ‰Ş@~=×mÔ€•*S·Yh{^|ƒ¦³ÂÏì¼h^l ÿòqu}îj!]ü ñ×ëæ/5™.„Ñ…{kÁË*ÍyngoEl_¿­ı É÷=Fœ<-X}BUjYû‡F†¨sİj÷Bc|«<ª³d^™;Y·?øøp—¹ybÅ]%’¾[‚XÆ²^¶¤ª†6½åjô>]ı˜Å±~<âîÇ®kûßñ¬ÿu,=öm¢?w6œQéXaûŞlnw£Œ[|/5:Rİwèo9Ø:´ö—ØeWşÔô±dÿÚİW#ÛĞ»XÏ*¾Ùİ=l2‘ 8ğ½í}/°–¿R&×KŞñ”gË›Ì‘á’Ç'w]Ù”7DÉø¤”ßM÷†¾º\õ5zyE–o_$ÆI“4s=c/Gh:6óÓUÅTw¦YObƒúÊ°."øFZK†¶aúÆ*ç‹ô7Er¨Ï¯>Ç¨©Ú±q¼ği|¬½ışPÚík»/o,L5`ÛVªl{º^¨ü.ìØ¹†é yn®ÅgJ8¼CÒNˆ¥ä‰ÖíÒİ§^ìF]¥§SÓ :µY—Šã wlÖñX•X·ËBÚÀü »ˆyÄuÑWùó¿”ç`_Šµ´±%}é1¶Œr:{3ØSŠÉªW¦Òà%©€]fskvÃí³»§¶+›“ĞÙ„æ»]¿Øé´ñå‡¢ßvs¿ïÃŠJ{½¢Şé¥¦´isM1 ¸ÿ4ã˜&‹Ük‘‰¨Ø˜‰€’nû4ï#_-)¢Â¢š¾]¸ÉÅy–ê—îèDh'Éûm)è¬ç·#ˆ+~>AblE„hk“‰|N»¸ßToÈ_ÉäîéÚ/G'¢¨^×eË·Z­¹¯ˆ®~Ló®5ÜÑo4âU­×§ç¾w¿w2Qõ‰hÉ¼áÉ­¦áH­Ôlwêq®ıÇï¨Ø=BÚpg†z½ÎÕ·ÔÀÅGiÉ	&Ëƒëz¿ÙŞØxXè@\`¤x».Y!ï9í*ih´ÓŞü}àÕİ\^ÆÛ²Lõ•ñä3{ÆÚkìs,ã_+nÚyÁ˜´+ßæâ^n¶‡Rübé.^iad×;4øi‹˜½õıgŞÙñí>å9_;Ø•?£ÃJ¼q¡ˆ¥xy´õJüğU¡k
-+wõ6°o£K®‘xHÿ7µÈtMP‹˜åcbÅJe‡È‰¼|ŠM¤M¬71|eMÙ«É °üœH¸Cš*~—†¤´zEœj~Õ·ë "…mJı¨(3ÿ½Íq…Tá÷GÂc¸®±kX>GšÈíØVi ö+çÜ~›]M[ŠY©®7F…2Ï='5£	÷y> ê{©<²èıÈ3Ÿ6©Û÷½¼¶YTydÒyÒxÈëõ8kÖËı¤¹¬g&ú1+îˆ‹–}ïHÏ÷§FöŸÑ9î7îüĞ00LMİ__šØá×yÅB	ÏX]-´:8RO€#µ6OÖ>d;Š›E¶ÚÚÀZ#¹ïâ±Ø
-+”I³HöeŠk#—_mÎçË0/öø4PÄä{%ÈÚ¦Ôu_5åvoÒÌìı¸Öµ…Ù^Ï{sÌ¢¹.±ï½eÜ®³¯4|)aÛ¯>&Í3ièºdnñ8$yeÁé/)üû²ë¬T#‡{Z›îL<|£_9ö˜Œ”úf©ş»	]æ¨ƒb#c©‰*OÊ/1ÒRƒÌë¬F…r¾wÃóÆ‡b¹»Öñ}7Làz%§Qó­¢ä¶C‰Ò£o™ooõì¥y.[Ê$
-+†||+¡&HË¸5Û±kÔM$@ş+=-ı=SK„9íÑ›çÔ@YÉRÿgd¸…·	ğPcHz{;¡Ô¢XâˆŞm­Q(÷58wS¦­Ï`rëº¬'¾)jv&íš-îEooôÔ“]-4úDQñøàõ¦›åú¶æb§›"ùİL=¯ï>­cøTç¢˜zªflóºæ`C]Ÿ‰Ìrnf$ û_<IOò‘Üp­Ó.>¤m»ŞÍç§Ê»öìsZ·=±Eúû}£óü®½ïó„‡ªÏrËeä&ïı5ô^ê?#4†|Y
-+G*3Léëj9ÄZÒerÆ_Ò«ß¢Ÿ¡·J|lKåğŞ*Ä!”f¼sûf´Ç˜ÄÁÂ}!Vug5Ülë.'‚Í¦Oº³ÁqR¬¯Œi}ÌĞæ"{R•:ƒŠâÎ ù°="4›s—FuÀ•i%âÍòû	×™”™¢®¥ßçïóÚjÜëêÎn„ÿÒ@]ÏXñr¿h_Ù CAA…1'Ô,Ml‚lœÿ‰:[|ÛüDJq|†ŸŸÌI?¬¦ŸóçI$¡¼÷¯–J]ò@Pb"ÍôÅ !¡ñĞ!Ÿ®pŒÇ((­“F„ıÈ®„ëJ[½O¯åíxóì¼=ã‹ÌOa¸û{³ÄoD]?/vèÓIRu†sÛz,s iûÓ=ü†I+ì!nljéÜK½¼5·Îd×ño|ĞT6âŒÌÆ#âšÙ)5sCuÈs2˜>æÚÍC£ñ%.’uoYÏØ€ÏÑFJnÿÆæ:-·cFÉj/ìwO£¿VÓDd¥™ÀQâõMgë|EmCÏjŸïK+ôÜ“®†¢¢õlòîZw¾'~¤Ùÿ°5]l'¦T”‚>n„òLe'"‰!óVs³Cêå-{3Öiitø›ÒQôI-™;W¤a9VüÊŸ¨¦6Ğî¸²rÓ’Q+‡zdSHu†ñ1Ø°Få©]GÃ"l{DÔ}xÙ'¨ÕüønC²Ü'¡VîOz­4k0:nË¾c“Ì½ÂÎŸ©lP²Vâ|šš6…{å‘]CÉÍXó”IdÆëá{ÔÙîwk¥)© dïíğC\Rj6f&ó,Î`­n–ß¼3O1±$Õ‰®êa+;Í«p§_?é
-+I´cIê»wıQÇ·‡é¯ZÛíïìÉÕ- /"}årÉ=Ğ±Üöû¹1Ò±Å9M'¸.íi%ş¶I¶?ÿ÷‰OœÌo)Ëß¹0,|œşvÌ¹…¡u€òŞÒ[°ì÷JåuÑ&W¯ß$,Ùì^†-UY“÷tİí®+Ñ´ÊY¡·QÛ
-+»ÜƒêïÅÆ=7» ÅbĞ÷£¨ (×¢C!¹ú{ß3çŞï"—üŠäŞN»7¾.¾Ñ¸Ã9šÓ«ó~GuŒŠùI:?mÎè	1Ç®ëyß¶j¾Û|ë¦zëÕ—Fşnj à°g¬a‰w¸®’¦4·€º4w–H`šÈ]9a·ÄC<‰{öZ:›i©İpPVĞ<d¶7ëèM¸ê5¶,.Ar.8ƒ°«—¢Ä…ÇõôD]xgI™²y“ºIÃ»ô’ÊÈKÑ—oœ‹O¼»6YeCH“¶Šk€÷‘áI1…×J´b¼*9¢›RUŸ­Û,’ŞM|„ğŒ-¨ñr¤i¶æ4¸ğ²¢¯¥Æ@u”hï}ŠûäAÂ±—ÇÚİ©*]CÅnzƒöGãGø[aEa;Š¾îºÙ½‘<òhŸ«ñ¦s^Re£•9»XÏÈÜdıÜ ó³´”¯ß.‚fÌ#Rãa¸ÚCªµO)*ÀëèNC“C^j–Mr¦ôòÒ­N,ê)Ó‚OÍ|¢¥Âë35ŸßÃÁÏz’;U¾2g—ÔÏ†3¬q?ı~ÄxÕˆ&q§Òÿâtf[û†„è>?ku¬z‰TŠ­·š¥Ö9z/õ½Ë¸UWÁ±©.©R><‰áö½½yDD®›¬oç’yÆö°uy¡´y‚yâSÛ]e…;&GøûLkèÛ
-+Î(3„¥f¤rGc¼¦¯´K²¤æéÏïE¯Âˆ$=C»&r²Ö]ûV4!Ò+uQ¿Á¢»AI–ô)%‹‡ÍÎÇŸ}7nbV?ÕçÆr’¾ypm¶SáèØ±>í¯{µQ§¹Œv]ùP¤w»U**?ãÌÍÜ6o¦MZe6V&®»°ñß.»Ü‡Ü6ÕÎ±ï»[ôSO8¢y]¼åÈÅÚ,Ñ
-+-ëX˜ùNnc/w$5 Ä¤Í+úíåg?¢LerŞi}ÛĞ* ß§MŞW¯(":6vváë—“ûÖ…¯wBO/PğÕ|şä Q×³hmÛ^Qáúã\BfUfÉìºRƒŸT=ì´ïUºI•Vö2İk°¬H?¶)J¹?V •k98öÉÉİgM4!eô™Öœ•îÎ{*²+ÙjœÎe>µ<®—mÜœäİ|jSøºÚŠÜ¥9ÎÚºlk¼ûcÔ’ÿÆÍ{0'Õx ß`ó@pqgUÂÏlâ³75üûí“ÛHöe×+‡Ş´õbZ’:ä:<UÊİx•şşØÇNÉæÇëµºuÌê ‹û`ì'ƒ‚Õ«{tÎ›GN^ÖéH¨è,sëlúnM*›%„“FRí”¢RSÿNM-ACÁ±Dl$›”-§õZ±º„?‹ó!ëa¹[‡b?&û?ÛF¹ñòûä¢>9CÉ$¶ÔWCj¹.¯5iÅ¿:•/™qúTËeZÛ+÷¸Ë
-+LrßÊ˜­ìí®ë9{Â*<d,­³í$Íx–Ê!ïØå¦æ³‡ªî£c›†IZ½­%\û£l{‹ªOçäñ°)tœ{yùÉ¡'¨Ş4ˆ&)İÔ-/ Óçé/înB’<=iwèÉÉš¼1âÿöóîà´÷Irw“@ŸFéjHÊ—š*×üêdÍıÀ¡­%w*aøbşµËÂ‚ÆŸ¸^×¸Ö‘Ú%–ŸÛ'÷ssP±|VÏHØDŒHà-'‹L—É%K.¦d
-+Î$üÙLæÛ~?ĞŸfÇn:³‡}ı5–&;IHŸV{=éŒR“¥İxxD}âÌ¦ÃM7É7Û+®ÿnLùu¿n²«Á›ëy7.óô“|¿³™->ÙéÛiEÓ5åŸË{ê}Mãòosí;µ£OFuŸçØó¶ƒ˜"úò¨Kmo°?§0mç—m~jÈğ ×dÇ‰ Ÿ).ÄûGªZ·U¿B›nîğFÅuË2m5Ã¾Ê©Í`»¥ƒ%‘Ö<6yË±û£j°şd¸ €ê ˆuó¹£=>fÑ£±êzúÖ™—là~7²]5õcæ³Á¤Î{b£2¡’'6274ŸPØ¼Éfä{ù¾İ¡‰Öëõ(Ê.e¡D6"|e÷©o+¿ôÉœ¹Û„ò0Šù&óaw3ŠÊs¹Š®ÄÉB¹ªÑj€ıaì¥Äqn£3¨€ÒáÊWOn‡¼äì-æä\.ƒüØÉq˜ùUyÊ¥‚´öƒ®c™­™ç719Òù;±83Ø±m·y§™{Üì¾Õ=Ã[Ùëî›ÊlÜV%ÓŞ“GßV³1+w7{ğÖâ¥·½U¬I_ÊN˜1Ö®]»¡¼pøªvëàö<µ6Å†äodXgé{L²Y—ËzQÉ%­_Ò¦,Ì,»Ï)X@²–b\æ	û>-²/¯/gy²ÙtúD}¤Ä–Óõ‘ãrpÍãİÒÓíªîw¿]{:µøšõıwOqdÑ³J<€é8“-ÄÜá,ãy¼‹«º0‚ôyŠığjÀ­¢;liÛvŞº_a‹Üa]mõlÏ;±t÷ÔéJî|Q'9ÏãÅe‹¥¤’s‰ûZ6"'© pôVôNÏ7šívÑ"æ²¼;ßH†TT^ù¨šEUÎ¸!×”Òİ0Œ'îºœ¸ªœğIóİ"—-ê¸•T)[·Q;êe¿MkÈÕ„hx5mllÀØEª³Z!ÓÌ^°ÂıÄèî¯…ö©bO_d\ßôğn‚ìÚŒ·ÍÚYõ'&‚Ì³om=!œvõÿˆ§³à@1kâ»uçm¿‡l?b/HìxùÌN‰¸nfzÕBƒŒßEVyé¼´ÀÛ3}fÓÏM5<+óë€7Ë§§²|{ŞMq»æÒfo»ÏWœ»éNğÃ#mC©ûåÉ£™¥lR£$G•cwfğ•¼f;™m,-ÈÜr‚GOğ»Î9Öø»°3~ç¯ŠE=4t¿ÿ²›èKŞq—R;Køi³¨­fµ‰w?Ğ¿ŸzsÜ/G­ñŸ,¶â!‘ªN;wfÿŒJÜss0š1°½LµMN¶®ú½mÎ'dÚKò2¬¸¬ü„ò•˜ı{ˆ¸Â‡#´Ü®Ü~ŸR¹ãÌ¯7¥·¾áLÑíhŞ@““Á~ÀòÌ©ØŒ¡³é›UÖl)ˆ®Õvÿµ9ÙÀºö€İËdƒææ+*×we§é²¥J ×|¹ÿ05CÚK×/À+Õw**Ïçføkpäµy0üqŒÖ™7&ª‘ç"AVÿåˆq,×Ã¢­Â»Nı"Slğp:Öÿ¹"YßòÖÎ“^zğjnòµí	#q1?XpJ—øíƒw¦æ±XÒûÑÕâÛÿ	ijyn™ç×Í7Ø!+–ß¸‡U¼òD²Ğqu}jàJ
-+íóqqAúe"wš¿eáöÒ\FŞßÃ[>Tåùy'¢ôjhÑH,\#aúÙ…¡˜[öFDû×ş·‰kùÙú•Ç‹“n(yÜ'HÊ.wëX†ÂhT×qÇ˜ts{òÍ—B®û9şL,dğE·–5øÂš>ìzL^|‘f[Æ=ÚTÉa£¦û.hæ|ı \zº7óyÑ±èÇj/÷ˆgÅ¹›yg”ğµ¡ëBØ¶zxÈX©|‚WÆÚêl¤İ—ŞËÈò $*éÔ¥cÒ¡vÍ,Œ,¦ï÷9ªÔºÒ«”}TÑWUô ¦uîÛÔ}+:ó³ÊE1»Q1èÛbCl%^(.Ú€Ï•2úä¦†ıÜ¯}ìO¾y§Q\wPğí}išûk±—²½~ê»§¾o­´ÕØÌZkµCY·Ù@S>„QŒ&ô[°áE~€¤q·í€Çíònâ£”lşb|SÖœ?tòÌØ|°l°>^a”‘'-âiÚ¸©†såÍsóJòO¹šÒ1”O¯kè3·¼vçÒ´ÁxzÆmjÜ~¢çÚŞì¾èCU|·Âƒgï7Å&Ã–Œ³Ç9XlÄE¼nùR*ƒ¬wğnVğz~!®isØëâ·Œî/Š÷úÃúÌrÍî!1zaI™vGü<Kvô—«M]“´% æç‰üqŸ"ã‚ÆƒîhxÙšÁãÅ8b»ëÿ#û‹I°ËºKÁâLyFïº¯²d¼o›ŒÏØò4¯SáÓrÛ6üf]˜›gìXßÓ†²´ôëñ1)ñú±¥•‚^¬l­›¨´¿½iÙ@şJçfpRÒÎLúõ¤§Ô¢4tx«Õrëkêx2:´ô(ëy”yß¼Ù«¦©áLu>éñyí›‹‡Õe‰ÙÉtRÓŞô3v÷~ gyËXAŞB·VÇ4A#ìüs:cÂËğæ|ÇÖî>tÉMH-zm­Syœ¹J7œ,ßrôF$_#Ù	ã½|HEóæQMÆd¢Î)¦^âÈñû²A¢“#åÔäB¹½"êgxÑÖWD¦Í”ÔÀ{26ÏX[««¸Ís1±ñá1ÛåKšŸ·W5×ˆJÕ	*e²g)e&œâ•—I‚‰ï'çu®YgbdDd÷i‹Ü‡&âÈÍ±—õTì˜Z7iÄ\x½/†åd‚…¤–ïñÃC]kı©ŒkB™yÎû#šXèÜPÌçéÏÔÕñgwi^‰ßŸÇE²‘2—Jæ1<_uq¾íe×Ç	€Æ•çd\ÔÀÆu§|ÚÍ?ØŞ¡~[ÙçSA»K{±ãÄ/"k¥Å«JË]dFJó6^ÿ<¾íjÆû±¯:^=¸Ç[‹Ü¢³ádÀ}HYÓStçŞSéueåå7æõ`^ZÈ…]@†É]ˆÊû*+ûL@ïwaztŸÑĞ¡¿Uõø#¡õ/ÆÜö+ÙgØİ/Ì¿«ıüåu½ \”â#Á"4%PşX¼ô°7#&ÖèÅ#&!å2>’Ç½Õ¬ˆ­Ã‰ÉyiåÅ$İyìyÎo4íõïşÒş¥ÖìLz4YÔ›-åQ²Û@sş“Î&ïŒ´ •r¦ †{ôÑÛĞnJSñvı0¸B¼%k0ß*÷Ü±EÎÃ®5É!Ğ{›ñmTéíşä×TmSÉ‹ÿyI{rmÓÎÍ'ceòñÏ‡dô°òò›d¢/z“Uä1é<ZˆÌ½^ÜÂÊõJHË8Éúš-Zk’[¯¶fÙgÆh¿n—aÿ’#â©êş6{ÆYöÂÁ#‘é‡‘Cƒq°¯#Sa66cW¯™<¿gĞC¹&üê¨æ3šRyºÄDóŠ;Fê¶BÃ´¢E ÙË’aeÕÍ-?TÄ33Êzé÷wŞÎ¢å9¯ÍFæÒuûì­¯CIéµ!Y_òÊœ(‘›TõĞwÕƒ±Ô'Ğt›T±ÑöÙóâL–•~~gXpçÖgiè|2“rX¾}Œ[¶•¸E®¹m²î÷÷†Ñ}ŠÜ.5a°¶>ªl¢xÏz
-+½¿G‘”tßÿ´5Á@¨Vœ,±WÔ=¸F—1ø¾ºêº©
-+ƒ™wİQ8ıãú½“x3ìõôÒÄù2ìÕ.h«ô¾p+•—vµ$ÇJøF½~iR®±cÏ¯1ÅãCûï›V÷¯»òÄùs¿U>ï3{õA{™Hÿmñe~5Š0ç2'òfaº›~rŞµ¸»Í°¸aıÈ?æÇJïy$zä¤}4òöí·LG>¶45Ğÿ®Ór1^I"áÕ±(Œ”a‡uÒ›b%$ßçŠ¦Æ¯
-+òÂu¶ßæc­o}ºEóó‰€ÃçU¤#£4¥|õïW?4úqÎóL ÇÎû?1ÜÉ5á!ïEda4×:½ìsÙ¿–¾"Já(îVŠü‡îY÷½‚úc7¶J±—¤l)·×ÎeØK5±NïÉa	Æ »!_¿¾ø|nb±÷†VífÏ<ıj•Ñôôµº÷Ò‘ÕîÒŞ¯PuŞ…ÆJp4 SDÿ(Ì(Fñ§tƒ™è¶ûk5sµoOpg:¹ğ3…šür÷ZŸ8Ä–~RşÕ«£Åd;*ĞÆ‘¥tÒ^İêû8Wı(U¤o¤J˜¾ÿóQ³¬è(—Jt#Òë+Í–§y7;×:81.º½ŠdÌËS,PÒ%­ıÙ¶o¡›³2Ş’‰pÖ¿•no÷öÊ³^z²Ÿb´,Çj¾«lŞW I–ÿÓSt½3F5øÆÆròãŸŞŸ ¡e{ãÕÜtéòÅÎª1tw${éúÃ×xo™I¡¬$Z“¶µÃö]
-+Ó«àÓ©"ª)¶Úá.±Õ’†LoÃT°7¯:ŒàéÙ¤Ü Rşv3’üNÎ£Æƒ÷nlçÀ|µ7~şòìÔÈõ'k«‚jblF4ûš"ã|Œ¼Îù¾Cå]e®™ğæj:¯we)ˆ“êí™‰ûséàÛ®¦hzşä=orÄO$ÜTî™˜™ÀAó.¬'ßoïŠë8ÅWú=¥!şç‡ëê#ìFÑÉÎjv}ttÙ˜IûŠ5Ø¶ıÒqÃómè§ŠLéQNÔ@;å¾Ò\«·~Ü¸¥ÑÿÉ¬ö¹”›WôşVŠ¾Æo¶_î³6’Hnø±ù]Âsñ,kÇ5·³ÒŞ¡`Q ¬#·
-+Îè“wôgùĞğíˆsiø£ñaÖo¿ ûÁ|ÁÅÂı˜üœû^ÀvŠ¿|ö··jÍAJö?#¦àØ­˜ñÁúwÌã—év^qğdNrí8¢î•ã›ÔuØ*€ÙäáÄCÑ=¢#¾XŠ×êFÑ%wÂü4…È;+j¹˜ä w¸;àTâ5*±¶¼È]/ß™¢‰
-+°ÿ^PQKéÓxÚ55³ë—øIÏØµ],œl?‡XjRïH·Œ?t)±¼hZW/h¯:A%ÂõY2Ó÷0exÁ„Ì3_ zÓí‰0e¬£Ò÷Æ´®ìÛµİUD„XããLoÓ¦'g<!;Ù84JL:l:Öğk¯Öã„.²PÏXÃN‰*¯@¶ğè½'ÌÏØ*ºœówârÇ:ê'ãşÃBÊ2¦¾GµñçÏ®Ëã—4­±×ë-ÜÑ÷kü·’ØÖÿ’ÛïLJô!kó³nbp^î’(÷*Ç<­y1n.rÑn3Æ6Š‚HmAÁÏØ 6‡rØZßöâƒ[²ÓŸüäd¸²~·ÑkSipã…×-ÄÓ¼gqæ®ôŸ·)…—xŸ•¯ñ¢’eĞ‘Œ [CÛÖØv˜íKMIÔ Â»Z7¹ÕNo<hÛ^³J>¢y´%Èê#"0±éê¦c2¢fÊ
-+÷{~¢ıÂ##u%İÈ„™OÆšôá¯’ı¦ô^¿>T¡k£#;‚6ï¡»š“æçÑÚ˜Ï°İî‹Qzà–şû
-+é1ş>ÙT9û*¸0¯:iUŠ.é?ªælx¶å”¥Ôó'ÖâªJk{)`Ã>¦[Œ>rw”ñ½P%vÖ->¼:#3å©g¶áõx­Ï_¹üé"l=9ï»ù9i‰ŞÈ¯+yK’„·Âúï\=ç6tè›Âo=)©¤
-+=9
-+Ks=#v ôRo­©9Ñ·0šjÛrZHü L ws·§-ƒ9iv/I9Çôåğ;&2fÊXŠÀ'y7íáoOk×=G9ªØ¾¨«qS¥ˆ¤îÓ™<c‰w=ûG>HvK„i2¤8¡8tá~$0õªÿ¼%©˜©Ax¾¨ò‘±Oâ_#‡öÖ 5tüÒ¯Ì°@ø¢ie(ÏËC@+l÷Î&¹Ô×['.ÌÏË¹SÜ+æJÛÛ~ŞñĞğÌ[?7
-+ŞÒáGf#‘·ÙP9·ø‘ÂHTûø‰~‘İÅe}…zÁœŞÉ
-+Éœ0/¾³#İë
-+]"÷ôİº³õ5 îğf(º®±áO{d¡æ÷¸^lü³ê8Åî!ÕáºúÓ@è¾ÓõªÂêÌ_òrJœ¤%Ú/ËMe[iµÆû(&Pª¹[S™h+é±n’J—©ËÈD¥‹[İµÍa‰ğ¹0*Mç[¬u»¿ÙÂåK¸a;ñhì?¨Ø•p¢Ç¿ªÉªÉ8üüB(læÜB‘½²8ØH\¢ÖÙ•ÙyÆŠ7>/ÍBu½eO6â$b±"¿ÎN€tOÔüÃ™A	Cñ·D-İe›Y]k]TöœH¸ÖT16>ÛZQ'Qôfm°JøºŒ-Ò9jm–£O¿ßmhz®(¥p®pD©¢Ûr½Æ’jå¤ös×{£Æ¯¢³äèíMBTş‚»ª8èÚV;Trì¨¯iª†+îg W
-+û„Åh¯EşÈKxªòÍM˜Q;YÏBNìP=MÁ¹ «¬’¢¢R€ bÍ5sÓ’£™!Éy¹7ºßn_Ÿñù’ıÄ½m•'9bj` Ev5ÿÒ {Ü³4ÅÀö§=kR*ZÂÂcÈôŠFî<’N}.–{Ö¸a¼¨Ïÿ3C‰ßÚ'¢»¥u*¬®q&_Û Ùdİ;XÓñÌ›é›š°ø«#œ6Tg?¡ßÕ ÅX©¡ÙÏoMDs$İ¸i9lÄú8¬yšDKw5g`gíûberu¡MŞR†ù‚öxÉXb¥êhÖÏ§wö·?oóAÄ8ë³po÷8ÍUÆÚfm•­ßtëx£œRQŠïJi:¯M	fØJBüñm/ñ]/hKAâ´W™¹Ú&«*:uÿâ“g8«bÄDf')åú‰ï¬…vH^<ÈG#ØfÖ/İ•¡'ÃåcêvV!D‰‰§Pæu‘d‰á60‚İÊÉfÄÕĞomÄrbŞ¤’‰{ªŞDŸ"'j¡Iì%Î¤˜Z1ÌZY•†1›^¥¤ì%¾emO¸ÆÛÌ­àğÎ4ş|""{J‹’@Ë0¢v–oio$Ô2CÜÕ›L+û‘8ó0®Ôºy¥>Ç0`8}òIˆü(³Höƒ(/Å•ò¨¤¤®BµúÉãÊV]>á ÎÁÓñ>>—~ôeRÑ*l³õàtJ¼¤'òº³>¢›¸†§ ²d‚³y_[°(üªWVÍS%’9G^=@r±¨è£E_D¿·Šê)q5|Œ¬¾—­©CE¤#FÿHZc	‰Îô-“·‡§Ô6…ÕÅš‘Ã=Š5ÈÛ+útøÙDƒÒ$$ï{È%²§´á©NãÁlÚÄ_x=Õ:±!x€$€Iİ'vR~¿kÖ9ÖZAğ:a_ÖPó3y)<C„t#w 9ºf±f±z5ÚÕèò}ñzm4~°.ÜE®¯Xà‹ë1óGt$oˆJà¤Fã¥j©ŠQ—èc¾Díæ'/´>zœÁåXWIâH(NÛêb²AAÃ0ĞY˜.„’ÍJ@ VÚ¬»‹Ä=€â	-÷l¶ •Ç0CÎ>Ï-×è81˜¤kéfgçL~qqÄB'£Q+-N ğ9.´ş¢]º¢hıËê_YŒşÆpÿáùWÚcËtÌŠ#àÿFğû'îıßyÊû=(AhF[aà.Öj7skn_Ì\_Q	5|–ˆy}‡€Š"ù“Ñóq­„šÈƒà“å™<ÛVÇÅÑk^6ûœ)j{[,p‚ñ9ÙZ¹ğ±ëÈh)Êë˜îÑR×ÖæsGcùpÇ¢óÙc°ænX/ğ¯+€RRóàOM›“˜:k
-+6÷²•¹ùü+ĞIAó®áRĞN6ÀäaJ; 	TËã§ÿÍ,Ñ1sSRó˜[à%Pó¸¢Á6w÷v²\X98xîé½ğÆRÙp§-ÎİšÎêä=?ëô™`sOİ]¢ì=EXÒ‚d àÜç¦Ù5•“Ïrê<<B*Hğ<³*C0Õ\Å$˜dÕ‡®¬HÚ¢êŠäE€Ó&ş¨±0¼6âÎª£†È™üDÀá|øó†İ° 8Ã—§$Ÿ›ø| hŠ\¼\ 37$ÙUÕ÷Èè(««7,l\ óæ;—Yß<0X¬#”ìx+˜c.`WQÔ\Ì¯²`Ø|´-Xä!ö½ê²3ßåäµuä”µf5ÌÆÁÅmgG€hš‚€¦ìàµé06üÉ“¸3™`v8ƒÌ×Õì²ºÊªrĞiËÔ0¬=À‚óìàE=y­¥A‰L~¬%CÜ½?ÇA1‹W Â¯ 
-+»Ù2ß4Ü\¡c¬°0èécÌ1.0èğLpJÁ?Msêlè˜_R¡³³ ë:¸ÊÁ4ğ˜”M™Ğ¹XG|Vœ´îà/W¬#/”¾´#XŸ©¦C'ICÀ'‚¡­]\mÌ¡Šk«ëjí‘×6ÅÁ…ËÉÃ‚›?íU˜}ÏÌœıqå‚_ŒÎ¬<ÔÀ4¦¤àõ˜,IO!S!ÔäÒGL!T’ÏÑÉL5ÏŒ°9ÅòÌ†FcÍ­§¥Y9¸QóÌ£†)©këÌ-JÓÑQš¥… ŠBÏQŒºN@Z$‰qƒûÀÎåà„u4ç†”@TóÉ'Œ›q'£Z8BgƒÏÔMè¹@§AOÓ·¡ÂÍ0vPvw´¤Ñ0GÜÙá.¸£ÖU•e÷ğÂÔä÷ƒxaûtµUaà3ÕPŞ£İÍ9íÚw¸ÚÕ”dãê'sGøy‡ğ;şac1æøcÖ, ³”§Ov;(^*ì4è#®&ĞøU:ôj…-ë€±ã<ˆ×`rĞÁqĞ©Ô Âœ9äêˆuGƒ‹×ë|®X8å£]\1X>è‰Áa0UÚWK3;´ş„wk“åQ2Z{”&5îk~ÆUnRC`zø.WuøÑF	¡öìÁ}A á8?5 "¯¥&¯Š»$GˆÀà5\[§²‚0_”šg&?ÌÏ37¿(IÍ3'»¾Rê8œz´Pƒ GÂâ‡ksk˜#¸®~šh3Gw”uª=<<àĞ³p&
-+ˆ(>j z@øê€µ u{Ş…YÙñJë¢
-+—b%¨lxpA™´AÀÏÎ2ë™MD9ıaƒböA¦KLğ³“-fRÌNólŠ¥Å	Ã…D…P$ÿì±)Ùÿ<Ğ?0*0¸9µ•4ˆKšóšƒ•™Ííİì@{ÇÆl‘ù|%vÉ¤A UAUFQÛTA]Ë/Cr' Ü	Ã_ŸüòoWw™2§ş¸Ñ•`qı¹‚tvæh»ÙÕ&œäŠ±¼¡ºN8+êYuuPÒì+ %55èó,cJı¦!…³ÀáùÁÁÀÌÕ¬*´¦,­—p™§¦'¾¥S€ÍÆxbÌù@ìÏ[tÁ Ü9Û &£ÁbŒ¸` ”ĞÍ7qã¿Â@£ÀÆ	¶ÓÇw'ÌHBù£ \Ü,ñ–åRÓç}[©¹ü°3}Îñ2ƒÀtº¥éDiäYTŞ¢f%’WxÀ_Ğ°™ nVĞt=L[ŒnX44¹€i:% _
-+SF%¯àŒcçEa"	-‹A±º "ƒOc™n<“x©ÆN&Y´s'ïÿ~]DÔ¿½D„LÂãóäÂ|Ø8àØ]z5ø»Rçêóìr.ş€.ş&¿›.6øÎáæ¦^j",eU+Èi#k¨Î?I|	ÍOºtç§û^Nä$”E (ƒ«ÌYPN‚ãİ“ĞÀ€;°êÉ)ãQ€3“Ù¡ß°)¿`îö¨“;ljøvÁAí´Ws¥øãY‰ø¥à»¤#u¡luÕù¢W…à™•Ã2<¬~	øL¦X°“·ÿN§$ıÆÖì#Ég¹D€É©Xb*›Ê §°$~:5eçv6€ó³zºƒİ=ËMÁ‡ïû©eÎOjåÏ;ç$p¡2gÏÀô\üş\6ÏZv|AÚüÆÏAÚt›–Æ~I¸4Ò¦Ó,†µém3²şğ†¯Íj7³ÊôÍÏÂÜÌ½u‹ÚScÙ•³Z½4.§\K#sVªÅ°9+É_@çliÿøœöÌ¬¡SNEÂ}÷o¡t%ğ—áú‡àœÓ\‚ğÄÁ°·q°òÀÓBeA’yÀ\põ¨\(ê7 )<‹fB¨­¸Çh:ƒº…zˆ/™@B¨ÅÀR’fšÌC‰¡ÄEà¢(°¹‚‚BS‹6€@›-rDğ”(ˆBˆŠŠ
-+àZ“ˆk:ŠW TGğ·gÀğ»ß²Sû.²Sûpøğ.¤¨3Ê7gÓ”S
-+Ægqçspƒ0Ãy»LñnñìÒ`fy¢qµŸ²Ä¡ûó„ãîÏ^·Ì/a®8Å={ …´ÂÀ„+;×3²lu¼ü=N^SPªQ“ÑP†)MÖ
-+W0¯ ®¹eÊ²±„‚ëhGCR¿é36ï€åBÔ!lA{¡4;ğ·æ·tj®˜W0$„@;íæ•ÛcYºğ} åI¸ì)S}uEOoëÌ+~^!Sı*KÁÏ»óË˜_ÈŒ1¸°ÂÅ¸`@“ Â÷®0=4ÖçH„v7ÜÑv6“[E¸]²¹Ó$ÄÒü…û!¨.‹©Éòêáçô‡¹à”ÄÑÒ˜Å5ezëb¥Š"cg“stÀğÂ°{Œ½jma[à…nà÷Ñ®Ö3#ƒ–›l†´ƒğH¼8ijr8œK"Ìš7â¢Äø…áQaQaaÄò#îâ’DÅĞBD %*:g¤æ„ñ@¿p£ìêH;Kå[µ3wÕ´ øû¼`q2×åàn-Zé‡ †\1.®póE.şæ<ìà/®È¢X7“Ræb†´r„àH¤0¿èlÌLòîpo€‡mÒàƒI¸¸ZØ8Â­¥À‹àLŒ×(pĞÂm€ƒö–¼iãà
-+ƒˆ\Ü0ğ+æ„/Yrí˜"\ aP­vp‹ãîb1®nX?ôÍw‘Î[’2ÕÒ•TV§ŒKJã…L~¤)2½Ÿ9©H¤‘H¼Õ[”É rÀ¡_ sÉùÀ\‚Æ$ùÂük ”=‹¢,ÂÑ –!iÀæ’3 àÏØPşÿ5z0‹”Óp‘£SS×íQ’QS”ç…é()kãLIü$/¯uÛ%y9˜‚ºlŸ²šâ~˜ºšª++¤+xÂtì@Üğß'z ³È¸Z¢wÀfó3 Ø\‚ ,dh À<ŠÆ¤èÕ’4€eX«§JÌ×ò„‰ß`Lüá ³”TJLìH\ª¢æ4HA^Q<qbr¤™ã#˜ÙlÃîÿ=6ØõK6zªÆ.Öàxc1ë‚«5zÛauı²pà%Ø“MI‚3±¹§çÜkhWG{süãÄ9bÀéCQ1‹Dá2‡D¼¦<8Ó—e©Â~[Uç˜uaàwC‹Dˆ!…á¢Â¢¢‚H¡9ö‰ç0!'÷
-+ÿ@‚pNqhÂ/"'¿9º¹NY¾A›Wª8KTñÏ«0rc¸×! ¿ø¤.@W¦ı’<sN_†D,É™YZpÂ¦>Ï)yªÄY	§æ9ÂîĞy›•ËéË"ù…hå”_!ääwÜòÀB¿ü\Çü´g~I×üb¾yÈã×à×¡3¾yèÆ¼_Ò=¯¸À7?ãœŸ!CàÄğÍC—ç¨û,÷<°œºÿ=J
-+¾süõÓWVJ:!˜ü÷Y'À¢ûË"Ä“e4d9æÉØâŸü&åO5gäßÑ ‘E5×Ù:Öpù-›Ü\ÜÀ' .ÀßàH¼À1ÚØ0¨oÁehcãßIpá…rWĞû¦h¼	n-\íÁ'ˆutƒg(¡Çé‚™*UŞ\]€òğ—ƒ£+¸°Â•î€Á@++KÜ\oMúµ¸ÿ†ÆÏ¼Ò_"¹!İ¿ãÛ<9(àZş'ƒÂÌÚ†À¨0‹`²ä°°;ømÆ°"FÑrÃÃß$ı,V£¿#{u#Èìç²ógş&Ğrú;?Ã¢CÈü„ìÜ[\ò¼¥"B!G¢ %DÀá‡DMzüf!<S*É³”J.òB.0I}ÅmÀ´ñÔWuˆú
-+ğà˜Dx*Ï´Bk’y‡°â²âVHî°ÃÀšy#ñÜrÖ,ĞDùfœÄ©»ØìÌ7ŸS4{95ixÎ³ñÎ"‚¸]ĞèIÜhÆ
-+€»bÀ.Ô¿Ğ…ÀDˆñ#áBB‚Bü‚"Â€)ğÿù€9…Æ™µ»•íü‘¿9>ƒ×yğÅ×'T…ÉEÆÓ	ƒµ±í´İ¼ŠôjàL\BşèÉ'„³2@ÃÁ4%ğµ³pÄ¸@Şc7''G°Ëp‹E'Ğ9ähæ2ÓÖ…Í]8ñ,ßÜIa= ¿7a}nÍSJèÒŸššdğ£ - Q~A$j.Az÷T<¼»bÊÅjéê·rpÃ9WÁ¿¸·ZÀÿ Şã;ëãŒM4•ÕÜÂ÷-ãr;¹™Mú¦ñùÜáø+ ŞW<-bÑÒ§v§? zaÑj{÷Ê!´‚öNĞ@½»¸lr{'sè?€˜NnµtrK,î€‚ŞŒœ–Ï3÷BÜf	ÜãÊç„u<„1wu™jøp¨œõ}†X¾ Ù¾ø°Ägáèá`çˆ^$RCKò¬gXınÕï³ªE–fU­8 Êê# RÄÅöïÄP‚ >Ã‘Bü%*H`œtÎŸ™ÛVøïÇAùoVaåP€™H(À*C¡,•oYVÅCY¢ô?`U¬šñgñPV…_† —AĞJHP\‰¢ù—˜;W$’ˆ€£¢Â‚aÄœ…Õü÷İşÀóÿWÃ¢,ãÂÿã¢àás—I°ì:+±ææm<­ÔİN0@Ê*8(«bŸ¬‘y'àD",& çàE‰ÌµèfIæDI™ä,'Xe `µ‘R€ß
-+•‚«ıÁR€Å£¥âØ,/eÙ€)#¦ ‹…L–‹™ğüFÎtÜ`^àà#§ ÿƒ¡SfÅNfO™¤ÕüÄO™@àY	Éfn•ùQT†Q™G˜H˜I J˜Kå_&êÌ§,¨,QXRXiL•?`
-+ıĞ&‹²ƒb‚à_Fƒ+üyì ©¸*ÊIøOÆVYÆpù¿”©4Ív˜³wûÇ¡?&MªeyBËg¿m™ı=.Äj£ükèU“°@¤‚_áÂ¢¢¢ÂÈy|¡YG€©È#ÀR¡G€Åb Ó~Ô…ÑG€éğ#Àtü‘Ğµ~/ÉÊˆ'ÒÇ„eA?àĞ'ˆA!øÿ¥EÙj‘,3ŒıEÚÁåÖ²ïO/·VLù;IV»hûkÔ¿J
-+ùT/))†‚h¿¢a9ãı'— ˜dÉ¿›øıà$ÀF'jÿwã“,V£¿"{•ˆşªÂï)YQ”’?Àíï„)ùñÿ&—†«fú,ˆXB(dÉˆü·$oéñ|•”™™&şå&+ŒaòXü½ &ÿ!4NÅ2Y=	Ä3!Ğä¿MH]	õô_ÁììNøœ¬8ÂÉ`÷wCœü‡Ğ;ã/Y=~	F;Y,ÜÉ_Åğ_‰z²<úO ;·õ+e,Ëùm$.È½ä‚½c6ıÆğâ4Šºb†.‚øsºäõ\–A/"òÛ|Á…ßçÅğü9/fÑÒ—áÅ,^ëÅx1‹óòbMN˜³DrÂ¼˜é…36§È“DÜe\3&({¡ßêìIß1şXô@Ü#HÔ¥|È3˜"Ôğ!àÂpáé îëT3~[·£ƒı&©†PæÅƒ\ÎQìÕëõ_PëUjõï*õêuúÏUz•ıÛ
-+ı{úü{êüÛÚüûÊügºü/¨òÿB7[á¡?xœ»×ÏºÂy‚Èô>EFÍÉÛî$N—Rb”Şlt·ƒQ01±(9ÃÌD7'3¯´B7=¯tóñ{§ï1d”™<ƒEdÒ[®É¸§×«2òO¿«Ê(6™å½÷ôõj@Æ­—Ü“}şgÑ/-.šÜ÷Ánr×£ÜéR0}œ“óOOÖ Zõ¸uú:˜ßô=FİÉf/ù'|`=Ùà•ót}FÍéÕå€¼«“İŞ„NÎÍ6½”‡QQ{º¢:£<¯Ï¤À5]ĞQbòúü“¼iDr¦øôZ^FÎé¼F@oßLW0†ÉpOoÄÈ>ùş;N Ûô"cF±Í,ïc˜àº'Oø¨<İËÈ9ÿñ#fˆL—:4ÿ“¸¸~Avz±>‘Ÿ×#y’kz#ûôŒª“?°³o.ıÂÈ„ª›7|KaBr%×f¿Ÿÿ§{;0ÊNwqaŸŞà ‘šàÀÈ2½ßè¹}@¡í[\µ˜ë4­ÿ’-xœ}‘É’¢@ Dï|EİV
-+)–ˆî‰´eUñV‚ÈRlöß³'&yx‘ï”=#$’ˆU¢Ê
-+¦©J‘I2Uğ‹ó)Dj
-+“/y®I©zpU¥«z%K
-+%øZáC„ˆŒˆø*‚—‰È%C«Ø'·¡Æ-©0KÀ;’Y’Duö<	KÎÏÏ¡#¬›W5#Mù=Ïòş6¤ókıø „AEàÁ/ò<÷¢¼ï	fŞo†¼ÿÕ>ÿ«eMÖåxû}mZ.ğM,ÓÕá~ı›s€S§_uMÓMô`›Ã¡îŒ½¾“o…èKfMšæ?'K3¼8¨ìnæ™ÉÂë–gåiS#’9PÊHÿV¬õ0Ù÷<0ìHdËífçx7ˆºeUöÉt±J`!ï¾qz
-+r
-+ö!`(4œ'ï%ñµ:[É;ìÃ‹gŸh­É4ÓâL%ad]TÕ‰6“M,f¦¤†-ò±+Ì¬–îCëúOÇğÓè@=-Œ\‡lÉ™æâTÃhğ¥ÙÁÍªæ®R~“Åv¿1M³Ì"48pï	º0tT¯.)JgxÜ[wƒöRjö©Zä¡óÜ±
-+mT@\`%.›#;6âr@—ï’Ö<¶4P:çˆÙ¿ÜÁOä¬i[>Û\·ğ’Ç<r¿&4ËÉµJ?—Z‡ÿàÀG¸êÜŸÏÖîêßqaƒ“€ıZ[9ëùÿ<4ß˜ã†%xœ[á<Çyƒ#“˜Jˆc»kH¼sp0—vrŠ‚~Avúd>f™ÍåLÏ„&şãü›Qhrƒ¨Ídva¾ÉlùÍÿDWq ê±Øç¹pxœG ¸ÿÈÈ%100644 README.md Ù˜•¸¡Ÿå˜<Æ6È)@U”ç9±%,£Ë‘ •k,ÛÆÓiû¦ÿsÌ+Q“eãÄí2í°mxœ›Àü‚i‚'KniqÎD?YßĞ`Ÿø0× ½’Ä"½ô*®ä•‚ìt]ÄÄ…ñ“U“8aŠ¸ xÙ‘çBxœ{ÁtŸiÂcNgÇO¿‰õ'«0º  m%dê¼	xœJ µÿÈ%100644 README.md Ù˜•¸¡Ÿå˜<Æ6È)@U”ç9‘%şfÖÖ=¢#Œ¦Oàá$|¶ò“7ø“…c¶ç³&xœ›ÀÜÎ<á%§Š¿³cˆ§¿ßÄ—ş“½İ _Ó
-+ì«nxœ»×ÏÚå:AdzŸ"£ææmw¦ÉM÷v`”İîâÂ8‹ ¦œ
-+læ½1xœ›Çúeƒ)“”^AbIrÃÆ•3šrÕŸŞ2óJÉ-É0?Ş»br-“" "ËAà½exœ›Ç:uƒ“È­¯§Öx²[¨ŸR‹xÿ·0¬8#å¶éä0& âEÀç¾xœ' Øÿğ°5.patch 6ü¦äúxU×ıı!¼úPÅŸô“~ OÇ’-xœ}‘Ër¢@ E÷|Eï©š¦©J¦†‡(‘((²ãÑ<E	Ò ~ıdË©¹ËSuê.ÎĞS
-+0R‰š«©R¢ÆL’TÊ¡,!„…Œb	âDˆ!\÷ô2 "8A(…b#QEi*$£BŠ˜¨)1†BÊÅl(¯=ØÅ%;ƒe_²>/²BüıÉßCŸöqxc7Úß—kO»ó¼(ª¡dÉ"½¶? Ä2e(+*x pß´­†öÀª›%àå¯öö_­èŠ[U€§_Ókõ<Ëû•õ¡ùÁÎøÍ9Àé¦§º¦éKMûÔ?
-+²FYîôµRÖh;JıjÒ´¢•¶nÓÚaCŞØµĞ!2‹™·Ë×Æ­x\o2ªÌe³íÒ¶b'?rY‡,ßÌŒ¡ªÊAÎ»†$—ÄÖh^ó¬ÔMš%8Lcœœ¹Îº2¾K<õ|7½60]èl˜§<OˆÂĞª÷«¤“¼öˆšªß„×¨¥8ÂyÏ›E“C{:âÃ£vK‰g"ü9…×yÚN¥inzœ´#å”àlmºùâÀØáJ
-+‰Ğì+Æ™ï/ŠK£¼gµûĞ	Ô–{æÈÈ"¢”~|·İÜ&í~?õŞå€(/…:´õÎ¦¡d—£r:òğt#ó©~‰nœi‚£lCß=EjdG)åü>U¼í¯^9ğŠŒöÎıif|¼ÿ»·ìi<P°3´w×X´ÙOâÀÛÇîÂxœ. ÑÿÈÈ%100644 README.md Ù˜•¸¡Ÿå˜<Æ6È)@U”ç9±%#s—6ê…-xœMÑJÂPÇ/ßˆºéÈ-ps+EŠsÍÙ¦2õ¤#™²ãÈ¢›n»«½F½A=DOÒ\ºù8üÎÿÿñû´L‰Ë#ÏF.p¨®Ğİ"Ğ2 ×ÄŠf$  Ñ{f·d;Šå›º%JËÛÉ>4úºÑü„QèÍ'yÌd`UqtlÊBH¡W[š3T-lÛĞÆ¶#¯ëµaí¨<÷üp]ú!D¯Léà†-Kˆ¾˜Ó(Ÿ}Ş2ô†*·6bÏìã•b©íßvâìoÜ)APoáSˆ•š%KüaT5y‹/ò8Ó,S3RåÅ:/V Ùœæ« /ìqtÂæ¶»}û'(òñD÷l~‡3µó8¾Áv|Dol‘r=]Åé’ÇNº¿"ïÎQŸ„Mã512±ƒÔ¶b¶´T¤«t°•öd2-PáÏqÑ¢d‚ŠT¸äùƒx¬…"|‰?}áîÅCxœ;Ár‚EÕĞÀÀÌÄD!ÈÕÑÅ×U/7…!yÏlÉU/òyŞ\ü`Ì“sL.XG»}£ª2 cĞ—,xœ}‘É¢@ @ï|EİMkAQ$İ“f±E”mDoÅ"‹Ê"à×ÏzœÌ;¾ä^ß¦)ÀRL°„H
-+c!¥B1M¡ÄñPd99Ê^(aî´MëH£SÂB’ğ,á9bYÅ$‚Dà Ä<by†}Ş´À¥ùP5§uÒRğQ „—Sè§-§Ï¡KÛnY7mz¯æeVôù-ãæö°„p"Ï‰o‡ùioEß§-Ğ‹Ş"ğş7ûüo–İ³®ÈÀÛ/”µnÚà €gê¶ìîú·g ÆN‰YVTYvgS‡ì ºÊVÈK~ÿD­9ÊòTLyms¾.µÍ¹Wjbpy ©bÀ”­Ätº±ªjUÇF¢…©Åûp~²ƒpğNşçÑÍƒ»Gsœ °ı¨¡³70«"ÌÔ3ºV‘WÆ¯â$îı¾ÜRßQ«÷¬Q^í¯A˜íÔì;½M»òê¿^5‰lìªÎƒå¼±’<È»~Uæİ+ÏŠ´W×l’ñéøw£ò\ÀMç™Naós<Í^|&RšA^3)N²ØZ±¡·_Y–ä{<£rOC4îMûT¥¨”®ĞkC;bjá¯êÈáÉŸY#)¶ÄwÀ­.ò.õIuúË”}_-eÍe ÍYãûÇ2¡ı9¦z«šZ…úq¢ZÄ«ÕÕéƒJ·˜?ÏÖ¶öïcÌ­¨³ñ@cÛA–*xœ}‘Ér¢@ @ï|Eß­Äš­*™JƒlC$†Å¨7šE@ ¿~ÖãÔ¼ã«z§71J"2ÓœÊ	Q4¢	D@Y†r(S"Q”Ëj	DHä’y*;‚¤œ`”É%c	x‘U‘e¤­î‡ˆ²äp›GÊÆçKÇhß,ÏE5•3yN»öàeI$×Tğ„ÜOÛVÓD°«É™	xù›½ı7+úb¬
-+ğôİ´]ìì]ÛÇQ˜¿=8põTÇX70şÔ?¿WüLWF {JyFW‘¹7Œ•xt±n/Ò285ºÉe7FäªøÁ¶ˆ´ºÊéÛ¹Z3á”Zl¿²ğ‡ßCı®fï1ˆ^Ä7t•Íš?•Ka©†|t?×nÅ4ÈùõiUf%o:†¸˜„–w´”°··m¼Ï|Z–W–ä,À_‡+/4Î:XÌœãÑ_$µ®p{>½ûN‘F÷#¾…—¦s¦©ÒÜ†ßõb\(ƒ­r_Ôµ$ïÃ=ûÚjXº¸m[O×zqlãù5UÆê˜Šb¸â»	›÷À@t;èÙ‰IV¨×"kéÄ`@øüÁ¬h43!ëOÛöÖp8ém<»Uİ4È@mrB<z·Ã‡¼_ÏEqşš÷^¯…Õ½ràUÛø÷ç™éoş}ŒÃYòª¡#¸V	˜û¦K²fÒ^êÅKxœ›ÀÜÏ<Á“£ 39?'3)y¢¿‰j€§³¿§“s|˜k^Ib‘^EWrŠ‚JAvº®
-+LrâWNgÇO¿‰/ı'{1Zó"ëä #"ï¾GxœÍUilTUÎ)]_ig¦3íL;Óév(-oŞ›¥+ËĞ¡í
-+]¤-C°ÓG;0}­³Á¨?üÅ¢7õ¨AĞøËãüåÑ&JBŒøGÂ¦ R@Hi©÷¾a)m¢Ídî»÷¾sÏ9ßwÎıŞ™·ÚšhãT•§lôÒ”¾7UDßH7bSdÑŸ¦L ‘¼µ®šz"²‡·–uL—Ò¦éê¢Äb#±şğŞAÊMå}~ºŒš–é÷Ó„NL‹ôüŒ‘ºîUglÅ‡}'QB¿˜ÖõÎ;'E¶‘M›ˆ³£½¹…øıdµ6Ù¼YCŠ*H„%<4BÊ›“‘è@DLY”ko4ßxÜFzı^>=;SØ¨Dç8ìÜĞÛñ¯ş:“ñ(Ë¿{¦š; fìš)=:³„ï8æ¹ì
-+ndÓGNÇ-àÂm3•h\!ÂxüömAb?qN¸a6ì,Æ¿Êñ+ f¦@ĞĞes^åJâPu«ÉhTàâ€@Ñ}=I•Œ†Â;BƒŠ*§/:
-+q¿JxÉôÓÓÅ˜•ÎE¬×ó6¸êˆÈV<ü:¬ôÚŸ,Ç»iĞŒÇÒ ˜9»_[ ËğÄv~êl!f¥C%ÊéPG¯ŸNµîMñ	îÒãò°p5p—bEDG“
-+YODFä¡•‚(ˆn7éSâ	26’ŒUÙIÂ#Ã£‘¨sbDMáPD­ª&»œI‡RHHLI$c*ñ,Ä=ÕŸËÁ“‹¡0<9ôÄßÎ`´©¶§3`‰1…ÕWËÁú<<5B×ÿ&Áéj°àÖL(“Ä¾U=«ƒ}ı-=İ½½ş]õıõµÒNö×*RãHGwËª¾öî.¿[ÀO2ÁLíz²¶»¹×ï¬RGc#ájA¢›.®‰¾u³µNd€ñ—,èE¾òw¶w­Ş(öCw6¼L¾äğÖş'ƒ=~Ÿ\³T --ÚÂë“}²GÖ{º‚ÚVì]*ûXˆÁß·Ó—&Æ‚€Ç$°=„›z²éáË2ŞË™CE>n‘a°è8¾:×R"²Ñë¡7Ï-§+§@ÀW+ÁùŸçÂÇi,Í‘…°ÈÈª6Ú¡iûC¤Ham=zUfcª(æA½>¡ÖJ­×ÄùÙ˜qOèğ×<(Ò:Ñçsy½,şàéğ*0š!:v^Ëh€'Ó§ƒªâT*¡hT‡yJ¼ŒQ	û=PŠŸé`©)eQã‰ûvœqƒ,ô£:úíDêkX&Š¥šK‡'½óSÍ¥û&³±Å"MŞ~
-+é…;+ğKàI˜èÚ¿ÛèÁóYè®…u´ò/3.€jü® Úp½™ÅÓİµÑn¬yèNÀ#Fvl×¤	U#‹~­ué^dâ‡z(z,²fªG«ÑYYÅDä×‹µ¯Tápo¨n.LDp·	âÌü¦	è¾Û~Ü^å9£;ıÑˆšÜE/İiÄÁ¨'Û–œ©¶¢‡ÿ´›9Q«zZÖø|$CJh@‰ÅYA5üáÄşZ°¦1v×7@Û(Â\3Ûk	.´°b¾Y7‹Ls- §‰IŸÌRŠïôƒ›9ø‚¬‹gé†¯6%³à‰q%A$E1` +·€¹I¬ m#1¢©&é‹'”aÒ­FÇ‘ƒÖn,sB6¨‰PŒKÇİ¼¡]´Ööæé]á„•©£ZEiì:l`äÏ#l½€Àã2cÔzÇ¬æ×:íÁú~w1[Æ…Y7'zK „_SÜRMZ½–0exœˆL+H³ñ×üÿğgßÇ+à+6ğÏÁ®ù–e.s§lğ4Ö–BCVÊ^¤êÕ
-+|ßù†y‡şƒ²u0¥XrÙ™µ¶2•î´Ï¾˜/Û¡ZSş­áÄiß°¯ì°üõ Ô£§rùª›Ú˜¢¡
-+•1ÂŸ²½ceL	ÙÌ‚“eŒˆ>+%L”ê<óS{§ZâŠgxœûìÖÎÂ«¬¨Ÿ”™§Ÿ”XœÁÅ5yƒx!#×d	SöâÔİT®É7¥¥'¯ŠN—PT,ÈN·ÍÉÌ+­àRVÍ+I,ââJNQPq
-+õôq‰wñâš|OBÏ$T©«âíäçêæÄÔT_¢P’‘ªTš™“ÂÅ•›˜ªàäìa«"2RSR‹Š¹&·Hªpfæ%ç”¦¤• ,®†jKQ®‚nQ¦% á§>›-xœ}‘Ë¢@ E÷|EíMk‚Jº'Š(Ú¢n&/°€¶ñë§ç±œÌ]ä,nNÏ#‰¨ 5Å
-+¢"VDŒb2„/H„¢$ªAÄZÊYİƒ„‰ŠÊ Öz‰¡„”(¾¤éE‚D“$Q…!$N:ôyÃAHó¡óœÖNÁ«¢j*Æ2™|÷ŒÓãç÷¡c¼›Ögm5N³¢Ï‡xš4·o aEQ!¼@Bá‹ŞŠ¾gXE¿bğúWûş_-k³®ÈÀË¯¦e{À·|°³-Oß¿‡æo. <:#1tİ˜ëz`Nø1WÍKyû!qû¡ë…fÚúò ŸM“™Q¦µs"˜Pl>lÔU+y^Ïm[Quw±°9s*®vÑ»¼Ru‘=!õQşfİ]wgjÈçI{ë>N³ü( ä´*®f×!*â¡—·Ê®³œN¾å,q/ùH>Ï™¼­’ÒKÂ¼«„|Š+bA# ;XZìü0K;.j«õ]gÅ©o÷ôÖ—Ê(×ğÊŸxâ©¾½­ek";¾V7re|A`àe}Z§³İÊ–n+Óô–ÛÎ•{tªùE"™ûáãŠ›°r‹×>‡ö¸F=;¸Ç0øzñXÛç°v#×yŞî†bšì”éé9$(E3x‹Ãf"zfy7¹?ÇHÂU®GfÖiox[VÆSøÓÌôÿ.&¼·Ú3Ğ7M•ä´¨dU'Ó.ÿ	iŞjká6xœ›Çz‚eƒ>ÓäV&I „•-xœ}‘Ér£0 ï|…î®ÄìUÉT„!xÌâ	ø&@b±ÍóõÉ,Ç©yÇ®êwé±§(ò)¢ª„ÄËLL ÓšĞ1!ªªf)$rJ¸–ô´Í4&Dbò7äÕ$ yJi„!&B–ŠHäÈ4M|RL°*Hõ¼(AU•µÅgÒDŸoÓ@ûá¹nzÚ^Ïy9Sòœ6×@PUI¢  ğÄË<Ï}Ók9´V9®§¼üÕŞş«åm>”9xú5İ´68Xl,‡GßüÍ9Àû §:Æú
-+cO÷¶ÕÚ–Ä•¯ï`QÉîMê7wŒêm0ökUÍƒ²å«;nÏkã³öG%â@jehšÓA•G­Ï¼«¹•)…Û`*ÎBi”ï-?¼Z®ú•›Åæ­\‰èä¹i¤…"~?Ü.×)³qèTAßï¦&TšÉñò³ë²Ëi\Ì›ÃÁ³èblsikçØ½Øµá-‹3O(
-+Ø•«R¸zİ•ñë}—‰Á#Ãf…hGG<ÁÈªÇiFÃ‘ÕloêÑ»
-+×=–—XãÀ¶r§˜ÅşìùÚCJíöÖÛeN£«Öàåú*Ú;'ÏuŸ~ä³ÿ0R‹Ñ>é.Ê}“¹RÓu0GŸ]üıàjMW»³È›pxOOxƒæîši{¤¶}"÷zGq<Å1ıylİÔ·û•¯kæ îO3Ó1ş]Œ;¶)§”ÔÈ˜_ÄÀßj•-xœ}‘É’¢0 @ï|EîV;@€ªî©&Ø"¨¸ãr¶Œ!(ô×Ïzœšw|Uïô¤`diBLchèX‡LM3ƒš"S3ôÅiÖUˆNk$°3f™–"5¥ÈF†ªª‚6eHµ nfbYªB;YÜØÒ¢»· M*(x5LËÄX·GıiÏ=õï]ËD;nn‚ñë0ÎKYtñ8¹ÕßŠ±f!d˜&x:„ÊO[—R2¼RÎº¼şÍŞÿ›å<oË¼ü‚|x~ÖŞì|/tö‡íÇo¯ <[’Ç!®ãlÈ&¨fáŠ»[27‹J_=ğŸ3İ}g†—ÑyjO‹„¯—šĞ‹<©€(¸ïv‡h™«¼å¥•b1âAÉY·úÀGbÎ­³uô½½¬<µõˆW¤¸{ŞVõUp„t/âé…¶ã¨ñ{xß\{“?o}åú5üvì¦'OY2œL±õø¥Cïk3DV[3h™Xèµ&¦)ª*z'_Ï…:Ñ}ùiräs$’R‡£Ü˜•0ºáĞ®vìº¡^°“}J²*¿Ú%¶à±‹‡[¤ŸníÈÍ‹B­û¬Ÿ¥ê¡]6Ş·xw¶;ò\7«…«—Ú¬ëp!sÃ–å­—Î>°f>&iáÓÓüæäòÔMÜ|v™—ìºgAÁL£‹l8àˆ³ÏÏ7¼ÙUÕ(}„“S<¥’Ù%´¡cNeRü ößk•-xœ}‘[¢0 …ßù}'£å^’™Í´Œƒ¨€ºàªo…˜RTüõë^7{Or’/ç“‚sP(§¦mèt Ë5äpêæÔ6,DuÓ°ÍÑ"×]¥¥‚×¸ÔÎm›3Û…Ğ±9gÜáĞ@:CYáfáRÄ4…ö²lXÓ²?¯¤5¼ZrlÛtÕû6á‚nïï}ÇE7ªÁÛó0:eÙg£¼¹|šmëÈÔ4İ/Ğ„Py¶—£”\ ÿ(§}^ÿÎŞÿ;;´‡îx /¿B&~¥¿ß?ÂIºüî €[Gr‚1ñ0^‘Õ¬š.'µ·&s§¬Ìøjˆà†q†Í ˆÆÌ±®_=¯ÔÈO–µã¡ò2Õ²8”ù” b£Ùøª]­å‹-î÷æƒ­¨Jö·ÄKÇ^$z´»¸_<{ç$¨ê×\¿zé”uÎfŠ·XİHÙ¡@B9´Z_.q¶ö,ìªEMâ68o¡ñğ«Uš?ÆŸÍ½!ó¾¬NËÓòhœµ
-+L°ßgWr®Iê%¹ƒ]øuß„3ÄÔA
-+·	Ç
-+ø²¢™Kº¨¼øÖÌĞNPı¶®“m×«û¡–.¾œ«0TÓ¢<¸VãÑ]}FşC=ßEKŸKî]wª<Ïò?Lçt,êº»Åü1Ìn[rÉ¬~Üfó[94CE¹WÏsÊ¹^~SÀ[é»Dùãl}üÛ˜’¶ŒJdŸÓšZ*óò',yà=êª xœ;Ã~˜}B…j……Y¼™‰nNf^i…nniq—¿³cˆ§¿Ÿ­~~A‰~rQ~qñÆ¥Œ,¾¡Á>›w1
-+1 Qnçädxœ›ÀÜÎ<á§Š¿³cˆ§¿ßÄgÁ“½]_¡’-xœ}‘Ér£0 ï|…î®˜}QU2ÀØÆ$@ŒÁ87IÄjÖØÉ×Of9NÍ;vU¿KÏ#¥@Ötæ(7P&"h Íˆ„UY70Í!‰,BBÄõh¤İ4ˆ¡ j™”)F ¬ç:’¨ü}¡*˜`„3aCËÌ®#8"¶4Àf¨ËFUİĞ5M«{z¢#JïÏËDÇiİ]GÚ7Ÿë¢œÙ‚×äÚş ¢¦I†"‹¢E¸oÚ–óLG°+çı‚Áã_íù¿ZÑSY€‡_³œëƒp‚Èİùæ)>:¿98p›,b™¦e›æ›õv¨öaÕÙGËÓY¥òèŞLójß\sãa,ÇÔ+îÒçVyÒÖÃx-«ÅÕ™¥/e¿U+Ìû½ŠYõE2eóã=P¬L
-+6
-+núC]NÂ»ÍÛt‰LmN9Ğ91.go«  ”ú.Y-‹ËO1œš4'aÈø]>ü(Ó6o¶Ô]h''f8ğuju~ip¯òg^K+g˜tèJÜ_Ï—ÔbÍ,vyò¶$2?Ø³Í`/%ì.ÎVµdlY¡¹ÂEÆE^ÏlÕÔøè
-+N¨DV–Ş§/³i›5¤Ã+-1|ÏËëÀ^¥µÈÈtVPmøË¨oÈú²®ˆ'üAôe8ïd’ËRaÇè]ç+-”êP¤U¡ÎEûß8ğ¤/Ïıiæø›ã¶åf G¤F]Oì'~,Ş„îóxœ;Ár‚EÕĞÀÀÌÄD!ÈÕÑÅ×U/7…áğÎŸ{{Ëë}KV8ó¼Ûkw&p£ª2 y´”–-xœ}‘Ë¢@ E÷|EíMwEñHº'ˆ€/¥AwP
-+‚P(òõÓóXNænnr’³:¬#H	ÉxË
-+F¢šÊá	”H†¥ÂïËpŠT)'9×â\P¡ A"¦(1I E†Iš¤A˜§"Rˆ”¢LãğÀÊ¦.‡
-+˜%¾fïHQY–´ÙH‡ãñsèI×¿^›´Õóµ ¬’×´© AFª¨@MÀ/ñ<÷MkÊé€M™3$àı¯öù_­h‹àå×Ëv·À·}°wí­~ë7ç ½‘ºn˜º¾3vK*ğfkÆJ)Ï’w‡ûĞu%:ººv“ãFjı6–ß§S³Û¸74Çç¬ÛÏÌeû€„ÌíİÓñkí†NÙ4¶:Vı}Îf‡Cìó}_Ó¤	‚Ù`»²SlïY±òLÛ•áéÓºÁëıx÷2m)ä¶8údD§í0i¶à!÷cxN5ó¶ZFbº|p`±“H±×ƒieÎ*ÚU:ñº©»å:&×iLü0®ÙêÜŠãÍ2æÂø¥I}89ê‰°Ù^éf%Gi”\&C`ìYOO¹{óòuÒtN}6·ƒÁ1á­=XªÓÉX=J”¨ÙUŒ¶ËEW4yÌœW‹KXCt*ú°½Ç8Ú.´ä‹iò)€d&µ„İâÒÎÜ¾ÿàÀ‡íÔ÷§™µÿ»§gÈiEzp§mÕàì'eÕãm’-xœ}‘I“¢0 FïüŠÜ­VBÂVÕ=Õ HŠ".´·Â¢b.üúéYSó_}ïôg@ÅdXÕ)#ŠAi(VUYƒ:f
-+‚‚Ä&Î’ZÂÙY šC!=35Œ!cŠ®AV BÉBE2R°LLdPC"½¨.¬IÕiEÎ9'àUÕ]Ó°9z¤ÆIúxï;Æ»ñùÂYûõ—µ¨úlL/Í 5ÕPT¨š
-+x‘±,Kß´©…`xµøè3ğúW{ÿ¯V¶eW—àå×l×ó#°òV ñ½ÈÚl×îo.	Ü;›Ú–eO-+¶ã †ı—?]Û¡^ñò†¸·,˜È¾¶şÑÕ£şa6zøö^´ú®”Àr; é/NEZ° |¬f»¹?Ùg4uìD]GıMÁg…mÊjßéÆºïisVF¤ZšpYry1|üv©çÜEGª¥Q¨«s7á™èC¯$×€öîSoÄÚÏv[¯ˆp<=n$ĞPşñİäy²ûc.N×ş3™(¾LØ°¸¢ÛÙk×'‹Í6!U*Gôâs²ªqÉÒí‘¼—@{ñ1s^Ö¸û¹ÖLY9Á‰vsZº·íª¸·ŞHİñ ÊÃ’xÊªï#tÿ>HÀK›É:koóë6Ñ.!ñê”eK;M½]{=ÔO{Ø=Oz	‹ÁºÔ!µDpÕóÀ7mëMo‡4•¥?ÍÜÈùw1iÛæD0°v-gá›ü'´OŞîÉ(xœ[á¼ßz²›ìä·Ì<“70/™œ&';y™ Ûæí,üŒ“¯°ş5°T02²22°2²Ğ34¶°02724ßüˆí8ëä¿Âì¼V†&z¦F¦& 8y/øä‚6›x}'×°
-+Onâó˜ÌÏÏ1y.«ĞdN~ÑÍ:üñLü@óLõÌÍ-ŒMÍL7ÏÌcÜ,&<‰ WB)	.xœ}‘É’¢@E÷|Eî‘9¢ª£¤ ±@PluÓA&) LB¦@}}ÛÃ²£ïÛçn.íÒ—QÖSI	‘iÒ‚ iä"&O¬	¢NDk“Ôùù•ç]°$
-+êB!OCÑRüDš,â¥L„4E\ÂhŞt JrV3Oê´KÀ«¬jª¢Húl<îI—ÇwÖ“®Ÿ×MGÚršgÍšã¦úEÖEA4¼,¤Å‚{Òª ”tÀ.¨Ãxı«½ÿWËÚ¬/2ğò+†e»>ØÚ[°smîãÈúÍ9À¡7°¡aBáº'¸6#ÃSó«<ÄÎ ¤3Ë…öwx:™Ã™åãÇ Ÿ¼/sE8@Ø×ÊÉ
-+É‹°©<İ-ûÍÎõÈt¨ûÛ~{wÜèØzãùz%?(wÆ×åÚÌšÒ*åÀõ4zâ
-+95>Ütæ
-+xÈO³r	Y(ÅŒ)ÈX†QŸÈÜâv(è{x^	4	â•²Šè‘´^#^ì‘Ÿ•“·©ºOÇLaÜ<Hqùa)Ám¾z°C—×!
-+g	BCşl8¶ÎX©{fUÒÙÎcUBi5:ÄšòrİY_eÜ¥÷<
-+­3¾É+è*5ÑnC–|w³9pÑí¿û<!¹½•yÁÄeØ×İ˜]<×9,
-+Ò\ªt7;ª¬?ê©e4!+ºN_RöÆ·¸16ÜŸÍ,õïÅ¸¸MJ mšçIQÿÈ0şÑÓ„xŞç?}Cæäş/xœ»Éz…uƒÓd?&Y–ÜÄìÔÉYLù J¾¾à‚‚rxœ›Ç:uC“ÈS¹‡®¶üW5&•˜¾¨:Ì¶8sr“ Õ¿åÅxœër]Í2ù½¼Ää|îÉSåÅ&OT0ã±Ğ34Ğ+I,Ò«¨âJšØ)H€é`EQ0İ¥×+ŠO>®h8ù§¢íäõÜ*“£•ôa˜íüAxœ[ÀÚÆºa1#§Š¿³cˆ§¿ßäÅŒ‰“E™Ì'Ç19 ‡§¹äøyxœ;ÏÙÆ±A†q²,£ŞdFÿÍIL¹L AÈoùxœ;ÏyˆmÂÎÉşŒ2›“˜r™ 2uo’-xœ}‘Ër¢@ E÷|Eï©İP•L¥A‚`Š¨$»–nDP Õøõ“y,§æ.Ï­³:cÏ9`&¢–a)î4İ†f‰´’\µi	u!]ãzYT:Ó·# R
-+»T¨¦1C·¾/dZ5JMQTİBH±9Ó•R¢b¬º¤´'àV´e=/&²„†-ßóŒ÷4¿¿‰÷Ã¤íz~>}Mö‡±»IÑ5?€
-+MK3Ud™àI1Eú¦ÍayüÃ8;ğòW{û¯¶?ï‡Ã<ıšãùAş¬?ÆÙ:õ~s	Hà68…ƒ±ãb¼t–áA]è¦ÎUµ‘\õ>¸aì¾[tvo‹}´¯®Ëæ„|Å‰ÎÓcûõ÷;Ã†¢+f›jáÃ146ïVİàxÔ#ì‘ævr-§.m9uÀ|n 5$ä,Á”Õä¶œFˆmì1Aâ~£mM;ıYgà£¡{NV©×æq´¬„¾|ùó)‡!a˜ït–™&[‰ílåÕ‡²½ìrö*5ØR¥ğ§WŠœçõa¡°È¿'"‹£ˆ9ñ‡äè}H ŠD«½“üLî|XÍÃíåJ’”o°ÆØ-Ëı¨ŸÉÖEÏª¤¶qOoĞ“´™Õ^®Ê¥¾u‹[îêÌ¾Ê]"aµÎG~qÃúT
-+¼èï¼C4hØµnÇğ«|Ğ…{I»W	¼"H„ô§™Oÿ]LZŸ9H=<¼IÃ~R¦İ:ºxœmPMoÂ0=“_á–]ãºišJ)#j§~œš 8Ô$U’jğï:6mh¾Øz²Ÿß{Ã`¼%5ŞnlÃØr<âq‹œÜ‘× Ÿõ¡n6¤FµV$¦É<Ëè,©½_"¶6Ô:fÑGÆHÂjpy{¿^?^h`İhçQ-şı¢´©;µ 2gİ©^“¡}ã`Gk§Íù90¸¼î	“Ä¾ø“™(¡\$PfÙ2^D"ÅY:ÿ¶Wi*Ò¿!
-+(â\¼–¯Ùb“{Æ¬îL}›Ã•½êøØ{Û>³¾yyõ6dÇw¯xwEVåqR¼ÍDşVb9ë±€sRmçøåúéŠøWT‡~üqË[ƒ’NOX?nÿ‘G’-xœ}‘É›@ Dï|EßÑØ4KÓH3QÚ˜¼`ƒÁßh3lÃbp¾>ÎrŒRªSI¯TR]š…ÊXˆaŒ˜rSn‹¢ cF1Õª	’$ ¨!YãÚ¸KëH±&K²FYJ…šÌn*¤$AOK§ˆ%TÈÅã7ğâ|,Ç5ëbğª¨XEÏ:~ı´‹ÃùûØ§]¿¨›.mËÇ"+†|¤‹¤©¾ˆ,*K2xdAàiUCÚ³¬‘‚×¿Ø÷ÿbY›õE^~ie˜¶æœlÓ!~à¿sp`êWÉŠ•Nˆ»r7¤{«­šÈ‡»ÔÙ!P4lbUíôËvu¯4šëú#°œm­p`.ÃÄ À‹D'o²¢
-+—§;O»ìÇdº/§|-åAê}bòßDñÇ’¨8åh ‡¶D÷•Ëíø¾GU‡½´³Ÿ'2—çµØº·¢­ï­Ÿ@¬n*OüHæñ‹îºŠûPsÂë<w„vÊ×<ZëºiğöôNp)“SED¹ìØ•NqcXGV˜k5B°³Ğ=ä@½Åàk§Ñ»ğ¥ùy‚/Øß\lı–Ğ!ÿ<?w~V‹7Ù•VÖ|YnuõÚùÿ“é›E3‹Ó_²+¬r›6êÕ=lØÙŠnZFƒ¸}ÿnho×6Ü±mêñ¶|Uû«¸[â7¼ñQhp>3œõ¿ã‚–ÅC
-+<ƒ¬÷Æ¢b?´BÜ¶Gxœ”QoÓ0ÇŸëOqi4ô”†ª«Ô­S[àaª"Çqš®]9Î¶
-+ñİñ™NLi€io–ïüûßß¾ó«³¤@¼©Y#¼“ŒIkÍE-Å÷7oá`··pñ..à=l6ÀÕR³Á@ŠÚ@4¡NP ŠU	%Z)œ±‡ˆĞÁˆ*d?YcZ+$8c”¨9ê¡0ºòÂ¶rÜ:ÔÛ#¥òä8]f—p®†x>gçAÅYÜ+_36¯Óåt²Î³åbµŠIciŒºu¨šáp1òúG:/c~÷õGHJy—èV©§× Qü)êB§Y¾Ö­„Qw+DŞ8îP<—œ™ıÀämî«z€ôf—’—Òö–®()¯	ÿUùıŒáé§a±Ù°ğ” ĞõGñˆ]g
-+‹SS8ñ¥:šW_VóH^µêSÜùı—	ŞÌ²E×g¾GaÈÑè×“o~ù”İ…kyïÙ}µ÷á	ì8RAâ+·È%©ÅQßq…åqÊ~‚:ó1?['­OÍT¡æ
-+šĞ«¦¢Æı[Ã†Ìçökª|6Zƒ•;¹+$U¼,ı-²t=[\'mcéƒ¡@(yÏ]±_XHj+î‚’Pxœ;Ár‚EÕĞÀÀÌÄD!ÈÕÑÅ×U/7…áå\ë½ò9÷Ûù9VûH(Îêğ•È¸²QU™	 T:.äØlxœ›ã<ÃyÃeÖÉÚü\“?‹šlek— V#Y•.xœ}‘Ér£0 Dï|…î®ÄˆE@U2	ŒMlƒƒ7ğM H c±ÙùúI&sœš>¾ê×—îç AL§)e‰¡+Ü2d¤!ÙbŒkTªÊ0•-•!*5Tğº%œéœ™û.0Ó¤jÂTM¶Ä9„ºb–Dû.¿Ò¼/Óš	
-+tÃ4Ò¬É-ÚqA£ÛKßrÑ>ÖÁ›òş˜]Ş'é¥ú BŠ5àAÖdYú¢UÑu\€yÑ-ú<ıÕ^ş«eMÖxø™Í=læ°õæ>ŞíÃÙ.	Œ-I	ÆÄÆø¼½¾/2mo‡diäïZ0¨Â1–ÏÃ.‡ƒi‰øK'} öÄás	D¡Fÿ”Íà”:(p”vä™°}rŒGÑLwØÚŞcõJRÁh­ŠûÄ­^Ó'G}üZ€Ù¶fdU»»¼:®dÃåzÇ­àS+§b\Yhß×^à«²Àå*´FÖ“¼7Ov=ÜGa4ÛT¡Ö8İÉ*Õy™¦~2òvÜ“)Ùk•³Ädb¢]‰U¯ÌÎİÕ^mÓÙ1€˜Ÿ±«ïÇÊ"=·ëP7{/"e}Ûª6ÓM-¸/Y‘½ˆ¼™‹Ïnl@\}:$‡×ÏLÖıÕV?Î„-]UŸZa›é9[:Ä+ñDŒzT¹C\×Q4Kcc¹ºzåù\¨í³Í&ŸJ?ŸÍ|çßI˜1p.JŞ‚¡  oÊe?´íDÑ4Eı¡á­‘-xœ}‘Ë’¢0  ï|EîÔŒªf¶T”AEô$òXä!â×ïó¸µ}ìª>ußr$ÌyÂaLÆTYfRŠ#2Ã	E$MJRM£Pš¸å×0"‘TN‘‚4c…•SÆ¨jI+„b’!ú¼nAçÃ˜y|emŞ0¡DU‘&>¢oãèñ1t¼í^¯uË›Ëôš}>$¯i]}PUe"ˆx‘$	?mUô=o]ôÎ€·¿ÙÇ³¬Éº"/¿0,Û]ßöÁÖµ×únX¿½ 0vFjèºaêú—ñµ(ßÌÀX’¼D›»Òº£®káÑÕí‘mßß=U‹–ÙêiÏïË‡c	ÀÔı¯¶m
-+ï'RŠïÍLzF™h”~àT>·wòşà•Üõ;èçH>,Át˜ÆiBaBÙ*üROÎ¬NëŠ†76›å)­¾Ì)Xœ‚àûçõV…ZAË—hà+düÚN! œ/ÃA¶Èi¸éN*/\sßq4<Î»›£ôGüIVÃ°òÌ&FâÄgÅ:š½-;£»ŸÙM´@VâöÅ*’õÎ|ç’Çj®uö’?ŒgER„6—<?W‡ñdGHÍCÌ'öœõN!¢+ 11?·ÑödQW)äÓJxÖÓ¼ŞQO-"Z6å“·Ğ‡uæ£x?_õİ¾ô*œ­fSö.€÷Úk–ÂŸgÖzşïc‚Îg`Û·EÓ×ìt½ÚÚl‚‘Gxœ;ÏÙÁ±a6ãæ$¦\& g;æÌ#xœûìÖí´¡uójö<1~C+=KcKsÓÍrîŒ›çÊ_c ö’È’-xœ}‘K“¢@„ïüŠ¾£İ@Ó1³1 Œ‚0âÜhå¡Êğë×}7¶_EfUFöc€2"ËIšP1KYNˆœ"–Cœc²È‘"@ÆiJ‘»Ğ5= DÁ‹„
-+™"äXÌ(¥ç>ƒ9•2ša	%XÉr,stè‹¶-†
-+,Úd¯OÛç=IáÇ8dÇ÷áÆºÛ¬i;v©¾gÇ²/†d–¶õ€d¼ˆ±^ !÷¤uÙ÷¬fÙ[C^ÿÊŞÿ+;^·ò^~f˜¶¶æìlÓUÃ(0~spàqÓRMUµ¥ªúšÿQ"h˜Ë@[“â$yw±³ªŠÆ³­[/ó8´ì°A­' +6[¾à@y#xøòØúT¸*‚cFÄ$MÄ¥¿‹†Ğ@Ò‰©9Ïó­½Äû»tĞ½’ÔÍºQ
-+6‰Ï>“Ô*qáhÅ·Ï0Ü8‚¿†µ:ÙßÕÃz:x—Õ†_d»á»c"|‰6$}VTå)á qµ+óöed6Å~æ8õÉ&òhûÓtv•+ßTñb¤;¦/G»ÚŒVyÆñ™Î»q Uã*ª[:·¾Q%[R…ébPü©1Ö6ÚLü}¢ºïDš*¯¶.Aûú‘V·°T?w9°»x’ŞÏYµYˆ(Úá=¯µ.J§½Y8T¼«î}ªX	'¬[W–]VQcì–×á;©RY4Ş8ğ¶ÏSƒûÓ™áêÿnŒ‹.íUwŒYıÊ¢İë‚–@xœ;Ï¹ƒ}ÂEm.§Ì¼Ò’Ìœb.w¿PßÄìT0#85…«<=µ„Ë)±8CÁÎÖTÏ`²£ÿæ$¦\& Rˆ†3xœ}’K“š@E÷üŠo—…qlh ±j&TGñt×ĞÍK¥hDıõ1e*wy«Îİœ+kÎÁ°¢„s3-ÇZbÄCljHÃ1B1A:Í„%JEk^JˆTjiQq¢a³#C#†:ÔtÕ¢Q]M°…tM¡­ÌDkšµgg´d5…WƒXÄ4õaïnyMÃÛ÷¶áuóRŠšWçûKšË¬^bqùªijÄBh¨Bé)Ïö’KÉk˜ærÖFğúûş_,­Ò&O¡ÿ+#wê- ˜°ñ¦{»[»¿{èšQ<²íÑØ¶W£Õ{1³}2^|’úòŠk¯³m~p={tp‘sÜêQT<NÛbaDFFq£À@Eæô<÷…»šùÉ-hX°Y\†¶X®ÛI“‘Ú¿ØdÓø|ÜnÕì>ôÙ˜¨djì—³å\³·š,g;s/{«{g.ñGPßÔÓ 	'rŞ9«u9aÓ^wÀÚ/T+·ó‚‹äºµ¥Ï…ûÆS½ÍÃQW-×¦‰öynİ×®$Âó')Û…i©÷l^$ay‰¹îúÖÁè=Îmá\3xt„AÆª—‹ÊÉgSÄµVšíèøĞ‹C¾éñ$¸î>œ²Õ—k¿4Ÿ“ªS[†å§~¿f~7Ïïn(p¯ãğı8&Á¤Xöyä£[ “Ôaõ¾REæ«îc€Â÷Û$¤ú›o‡ªí”?ÎÜ…óocÊ¶iI! 2Îx£(6c@¡£w*ŸhÊAfâZ4Mÿy*??ïöšL´g–7²}š–¢‘yQ+‰ò‹„ÏVH¢|Pù[Tÿ ç‚vxœ›Ï<yÂcNgÇO¿‰3&Ç2: b‰Dç‚§Axœ›Çúeƒ)“´^AbIrƒÕ¹®m.æ]]S¿ÌÙ2ûo¼KkÚÌÉuL
-+ >¾ûk‚§vxœ›Çúeƒ)Óäd&k c²–-xœ}ÑY¢@àw~E½“n‹bIº'®ˆ ,¢ğV%Å6¨¬Šüúv:ó8™ûø%'97§kLeŸQA
-+S©€b($!˜"D¡Béeâ™A®"»v`ÊÄ„Púb¨*)	™J‚œB‘¨”aÆ*V9ÒwÙ­.ÉúÌ2r>°¬È’$ªüpòYCNÃWß²¦}¿ŞV•Ï÷4ï²¾Ÿo—_@$„YdğE¹—^ò®cXåİº§àãoìë¿±´JÛ<oN_¬ìW{à+[óîâÇ9ÀG«ŸuMÓgšæèÎ¦Ø@Ï\İ”³BÜİQc<4mÄC[ºt>LJ$¨h¶‹l~¡×©J,lwp„^³}n#¼=u7«Ä—¡ÙaZë	¾fSÿ¾ç»ßË*tŠG‚¤´Óã@^_ÇSÈbëJ]§¿PÊšdáBúsœ"ÿ8õl)Á†ğü¬¾\ˆ¾;ø§²¦Æ?†èèÍøêP#k3V¹¶*Æ¨ËœIÙó£:YxçÚnI™X03ËÊŞûQ:4"_ŒV¿´R;èç›£7¡¯Ö1XÙÈô$ÍI¾:¦[»5³æ ¯-Ó&ÃÜØbè>wÕ4ŒüØñt=2î‡¥—v[œ¦(è^‘›M’ ÌÓ5ÇÀLë0Xë)c;ñé÷wwÓÏG3ı¬uÔ5«åUüäÀg1^^Ïül³°çÿ^ŒÓâ$yÉZpÏ	è«òFâoVÆàç“-xœ}’Ë’¢0 E÷|EöT·áUİS„FTğ…Ú¸ €!¨øõÓóXNÍ]ª³:—3B€¬hF®¨’ÕL•‰däš‘kÊNäT'y*t˜‘†œ-ÉRÉÀ©&AÍ°$IÓ%5Åª…3%Ó(›”Sœ¶l1Î`Jq“1Ş4Ã4t]µÄÇWDşz|=aıkÓ2ÒÇ×¢ätH^ÓöòHº®h’¡šx*„Â7½”œ¼’Ï†¼ıÕ>ş«]Ñ—xù5Ûõü¬½5Øù^ˆ¢ıÖıÍ €{o§6Bö¡½™WsğéÖ^´RW7…ùw„ª³ë#¡n×!wåVkwv Œ³màDún}H—b0ó“rZmÈ²ÔF}ú°ãÁ€K+fŸ²IzêOÕ÷6Ò‚f2éV™;ÀƒÁÚ9?.â•ÓÓÊ«‡d^¶¡O÷ÀÙ˜G´ú"eäÎÒ4ñ Íë~‰{Ï® ÜMÇ+îQœèªR‹›~˜ÏK9¹pt_F[Êß«–N“®·¬j‘0}O}”ßè> ÃçŠ³ÆuM1t§r}^;%ªoç£;W»Ô½sÒeâY
-+kqîÅ¦Š*úp:	àÈ¯ö6:æÓ£2Ö+ñéõâ¦É8¶fA`TqÇ}Ü‰‰ÅÔåš¢8)
-+{å ¬Ñ[b¾à½ni/üiæ†Î¿‹	Ÿãôû;ÎÊ®+›â'¦=ßö“-xœ}‘Én£@ Dï|Eß­„}“’Q€°ÛØl&Î­i‡ÍĞğ×O&šãhêP‡’Ş¥ŒÊæ,WŠ’(±9TŠ‚cr±`!‡dQXE’—¢z8 – UP^
-+5WÎ¹Q	y™“ È •Ue‰EœÊ)9£Pp"U7€VSŒ
-+¶Å Á‹(+²$	êfùHĞ ?–·iDÃøÜvêëõù‚I5Ÿó®ùXIâ‰c$<1ÃPßkƒ	A°1q¦3xù‹½ı»ô—_ÀÓŸè¦íà`@ìÚ–¤‘ù³S€ó¨çº¦é†¦…zè]½æÆ‘îËÕUØßùÁ5MQ]WsÚ[oMÜ%Äiê´ëÏv“ù,ò,0Ëüı±Tœ|\ZúÀ"ŸÛ†Ö=Ì‡Dãè]Ím9\Ï§Me”×½e]df$3w,ÓÆßE±CÁ#!Rºıç6LwœòÉhŸC2=C¦ÉÉç€»~ï‰ıM†ÈD›À—ñL›–­˜sNÒ,°^âöÈŸ«ñü*C€÷÷fgC¼)Jş!§«wHí&"«¿#²òâMH(p¥Com”AŒ§ãW™-EV
-+'¯^»2à$»ÅKÕd‡5u‰ÿÎ?¢¯(6¡	÷-½ó?QöP(°ıñ à¤ª‹~éšè.&eád¾€Ïâ­Õšuƒ$æ¦ïi‡ş"V'vşU/8ç3Û}¥ÀëÙ«¿ïøqcïÿ6FÅdÀ=(qëï®Ñøkäßª›-xœ}‘M“c@ †ï~EßÕ$ZhQ5³5ˆˆ„É­›	‰_¿;»{ÜÚ÷øÔûœÖR
-+d¦q*Q‘J¡D0U)UcC”¦4NIL¸;niÍ€("D‰¨(K%q²ø>Â…Š‘ ¡*¢`‚ËîYvkÁg}	Œ×I‹Á«üí!Iå§ˆ¶øôxï;Úv³úÖÒ{ùœ]r–õdßª "$ª¢(#¼’ p¿h•3F[`ålÓğúW{ÿ¯v¹_ºü^¾§›–íßòAh[íwæoÎŒëš¦šèÁG±ÉUÍØéŸJVHÛaÑÚ£¦mœÀÖmŠ¨±ÍÂÿè—<
-+n…µã9Õ…à'õsZC¾«aY¯†Tn‡[#é+Áîíø”Ç ó“Aá!’—&uW!»†G…Ø.ãÀÖ?…1}Yı5/FO©’³©Ú[>ÍŒ­ÜI']Pá}ìNg}£z¹S³uœÆI|µáÀ#—®ZºwÚqt£œ~+gXÔÙjhJ®’}S8ƒ‡$¿ßœÏWd­?;AB™yUÉÜç@yP%dšG)9È[9ÏÉÌªº­®Çyè†¡Îe6åMä–SöôH{Ç½NXa8v‡ç¨\kŞÙYVùnŞŸBşÙŠ§CeU5vÖR>ù»µó|ŞÒÖieÖF|òÌ7¼}•‚Åıifz«ãö÷3
-+Xã¿Ty}gwÌâì'„ÔäT•-xœ}‘I“¢0 …ïüŠÜ§ZC–ªî©&‚:ˆê-„¸b¢şúéYSó.¯êU}—÷i%%è·(`SBábA\ä4G}H8D@"
-+*ò­Ñp%O²u!Ím(-‹ZĞÁDn-ãmá"·O©ıUÁ[]HyÕÀ â§Bqğêb‚‚ôÛ}5—Š¯îïíUªkïtV²9<ze­«6ï‰óñ;°r¨ã¸/´,ãk=ÖZK>j¶9xı‹½ÿ+›òZ—àåWXğ1Š@ò‘€Ùè#òæ‹4ø½À İ•	æylàyS6ïÂšL)›àjã[_:Ï«’ıÈóÃa¼¶Ï=‡ÓFMgbvÖ•¿6 ù¯Ùà4 ³	‹ğh!3ª¤Ò®ï–ögn7/PS¿›P‡‚şHí×ÄÔmf6¶&€óPm#Úaqºv)Ë¼g"o~¨¯*]¬Ïj1v}æœé¦\lHšƒ4:JF‘±º2€WgV¨<¯ÜÄOdÊÚ$ã,gÂq6~µ£jÎvÉ‘<?ƒúbÇ–Ëü@ÍzYPÚ ’÷xÆSf~ŠLì¢Ø®i6œĞı8<v^ãÑƒ]Ãö’uim!4÷[ìd¬HÆ"Og_?,¼œ'+U®` —-ø†×Îcê-»o„Pf™Ø²v—°Ûwµ_L}d’C·3À›ø1iŒ?Î‚Èÿ·1cÑ\K [ÁO¼×p-ªŸ2İÈ›-xœ}‘Ë’¢0 E÷|EöVkx%PÕ=Õ@#B#øjw!	QŠ~ıô<–Ss—§êlî-ç€@-#6‰‘sQÄM¬B¤B“31“çF–åÒ…´ü, D™N	CP‡¹‘šlš¹F•a¨rÌ˜)g²)‘^”MV¤ìOÀ)É™µ¼êØÀiæhØmxKvÃ{ßñ¶Ÿ›–_NqQ‰²ÏÆ´© !ÅT f@ğ5¥oZWBğx•˜õxı«½ÿW+.EWàå×l×ó#°ğ`í{‘µùZ¹¿¹$pïlj[–íXÖÒ^‡YEgeâò Å7µõï–uO|ß²òLS+îÜĞgv’ËxJ–`ŞJÎ©®å„ë±•0\ı±oœÙmnDîVw˜EôRäJYD†PôÕ±hÂj&ÚÅ“@•LÓH¦ö"—¶{§Iãx)Òæİü`›cğÚÖ î]/jƒZ¹j²nçái¹p¢˜c	`ËI¼Lì«h½‘9İ:LíëâDıÊ®BëGÏv~£ÙfrØ™³²Dªê8%­·ñi>’€¼^7õj«ÇÉ³˜Te9ğNd'[)İtŠ«BO¤j	ã£áx%é—b/Wn¿°}Ïàñd«ö“İ]#İ@‡³¥ÓAıŠ+!ñF'ê„?2çN§ş‚GÁøa¯~Fß$ğ–sJš¹ÑÇ¿‹I_F¢§äL^êê\ÜÇ"hùBëß"–-xœ}‘Én£@ ï|Eß£„fm’QØŒ	lcì[Cw³Ä˜İ&şúÉ,ÇÑ¼cI%=©¦R€$Æ µgHÑU&”SD*S]ÒaN)Ñu¤ˆ\‡z™€ #™i„¬ˆDÎ$IÒ´LĞe]•$,ˆ‚œ¦ç„qxÊv 1.ç3°J|!Ï
-+ÒªÊúÃ’îè€Óåué0>]Úvç¯§¢šÊ9{ÊÛæTUÔM!x„2„Ü7mªi¢p«i=gàù¯öú_­èŠ±*Àã¯™ë tC°õÜÀØícç7ç n£™›†aZ†™Ñ[½.ùÜŠM•µüq•ïfºïy†…¬’ãÁ	gzôò5dÛ)s@V5o:Ó¼Ÿ¡‹§ƒ¯úş—i“&Æõ=¦I7pNŸBÑĞ¶sÊè'´Ö½9YƒÍ±	-Æ¢}WÍ*¯•‘`›¬&Lü¡£¤	gU‹éxÜko“Sh1n©¯noµóıÄNr{ğz¥od¿ô”Ö¾~!×¤Ş/,ÀK xgÓ;µ·uWo!D¦fˆrŞÍKv<Çq²ˆ6ŠôÚò¢Œm"Æ^4/»¾RO·õS}wÚâÆ(°Ù¡èšx#nÍ¥‘¥/˜åKkeìó–Ş-º3V×wÁ Bû•7uÔ½ròmÚšëÓÍß05ÄÇ¼lŞ³÷§™Øÿ.Æ„ Vé®swn1ù	ÛŞfŸ-xœ}‘É’¢@ Dï|Eİ‰V J
-+"º'¤QÜnUl*2,úõã,Ç‰ÉC2âååõ-c +R&AI©”Q(&XQ†"¦De²@˜*¨˜RÄ5¤euä„RER2¬ŠCõEeI‚ƒ2%2“‘”&‰Â‘¡/î-ˆH1\Qš¶¼/°‚e©ütÜ±–§ïCÇÚnVß[Ö\³¼ì‹!™¥÷Û7 Ê²¤¾JÁàM@‚À½Ö[Ù÷¬vÙ¯†¼ÿÅ¾ÿË›¼+sğö+ºi;>ílÛ×vqdşŞ9À±ÓS]ÓtCÓ6úÆ­VE‘¾ÆE…‚/Ø:£¦AõÓÑô –‚5:O»ã±_Îù‡e.“!á@’)rwØ4ÈX$üJÕË­»|†åş,õ'ÎFénâ0óÑ	ºx74æÂ¸ÙB3…èØµ56OóàY±~²ÊüùÄv·‹nº“~ÈCwÃie?XËg+¸õÏüĞyÎÜ‰îõMõz¨énTFE7>‡k_ÑvZ]Šu¦^&5rí>ßÖÑ*…fŠ,
-+–ÒI{?`^¾vÆõéz™0¶0¼ÈQ­Š'hö£©ÛõqÎgæ¶Ó¶ÇW…ŸëE½÷¡]”S,?—Ò«æ«á9ĞğIE»ÀB/½Ém…qPÜŠzÏZáp•¯9:¹¯îl ÚyÈ‡¦ÒSOÓìòÁ¬Ğ”ûãÌô—ÿ6ÆYåÆ—zĞÔlı’šÌÒ§ÅOÿât›-xœ}‘Ksª0 F÷üŠì™j$™öNAÑ¢ T­» ! ‚şúÛûXŞ¹ßòÌwVGvœƒ‰f°DƒÉxB4ÓÔÌLL˜–Ò“<ÇÄH‘•–u¼– £Œ`ª‘Dg4£<ÕŒ0çĞH4Lú}Î±Î°ÂY4Ø°b¨€S°:ëxÆ†i‚¨z?Ä¼c‡ûëĞó®ÕMÇÛê1¥,†d”6—@#dB5„° ‚Pù¦—RJŞY)çCÿj¯ÿÕD+úR€§_³İ™¿á,[¶²â÷û›+@·ŞNmË²ËŠìhqšõèlì¥QœĞúªwşÍ²rÙø–{ 
-+w×PÀìØÓWÁœ\ëPÕ…çP,˜œ½} Õí2†NòiäxVQ:ÌŞc¶¥Ø·ŸÂˆÉ>wœÆÚ`UÄ•ótòU<Õ1
-+ì0f®mÃ`ì\³{ÓŞ=éÇk˜]£¾Î½¶~SÀc]ÔH[»Öª‘saiÒMHeG|Ú-Å¡”¶\¬g;7Qş\|f³cŸQşñæ-–›¥¦mÎ¨QÅıpµÜ½ƒàn>®?+NH³Öõcs8çmoÁUA¯ºiûëüúÈíVdfïÊ…ªü`ø¡VfãŞE»š8û!…ßõMzşLœå[ê«÷¢Öêò+ÚO/^|Ş?^ğ‚¡•?ÍÜÕôßÅ”÷6c’9¤¬fO—²·QËdZü»±ßH®)xœ340031QrutñuÕËMaø-&¼‰åÏK‰?™‹ßÍÿ>E®à˜!DQRifNJ|I~~NrFbf^qÃ¥É†Ö‹Ö[§m³|ëûZgéì#Ÿ§@U§–”€ÔœÛg½¬ıRe¢ŸŒ«”æÂ.½°]~P5³’óóÒÍyùÖ¯öudÿ-æÀí{Ö£«ŒOÊÌ+-ÉÌ)½ÿãËÀ~ÿõO<”T¸#ûÉ=§—Ò““ãÓ2ós@:2¶t=8Çäk;}ı¼·¿/?}(„UGqIbIf2HËFog}N?]ÙS^6³fµìì_©%'3	¬:¶½E«ùîRN#Åœò7×
-+Ì¼Å‰¡:è‡ŠøŒÔÄ”Ô"°Gí>[oÃŞéf§Ğ$m7áñ=]¹¥Å`?¼»4íÇÄKŸ>­}ùÌú€Ë¶XñgŠóRËN):¨údêâïµŒæ<6^ó³ÈñÙGå™Éù0/4DêN¼ÕÿµE¦©ãtÅÆßœ“ó,„i(MNÌKÔÍÍÌK/×+H,IÎ`à`şœt3ÃòÀ…ŒŒ§‘‹öh=pï&Šj¨:©¿¾»z¶ğ¤KöŠiÄä«œÜ‘QUWZÂ°¯bf¹„Kİ¢9B^GÍ<5ÌÀ ıè¶·ÇxœíYmsÚHş¼úÇuIVŒâÅ±¯¸‰í=Ç¤ÉÖÕf‹Ò Š…¤Òà\í¿î‘è³NîÓã1ÓÓ==ÓÏ3İ#ÓšNİé‘†ïæê$²lsº®mÌuËQ‚ù¦-,g¶*‘cû4ü¤Õ5ÕOYã-4´3üÕN”“ÓS­U×NÛÀê­z]’eùiKyMÍ³vGijÍ6êj¾M4½{¬Ñª5; ãG£ïŞIÀ¹G¤uÃ…åD¡eŠ¢I0ÑÑÍñ$íÄÖ¿ıT“/U'²mÔâû®?6æÜx€£ã_$9§WLæ\7¹`wN³è'İ%ê³Ê®z=†úŒC£t3Ã¡ZÆ3e±òë=’îpÎáı\ÃùÇ¸NfDVXÎŠMR•sfECÖ~ÿoo.zĞíÂ•xøã‰¡MGb ?IâHôä=´­IÑ9¡¢èŸ3üáÓğv¯İQ`—š]`Çs­~¼éŠçx–á’kÏ²p×ÿ³úó¾Bı¥>”š8Hì§x}„Ïºoé›ƒ€å,uÛ2!òè"_lAi¸ÎUL-‰á¿R<TààÉø§ZnC PàN	•P¢‡#áÜ¶áÒux|¾à‹	'¯@7M\éAï|t3¸S£ÀW‘¨C¸íéá|úûÈÁã§†V$³„N·ıyrÛödésÛ^¤ÍfSÑğ§Óx{Ú¬¦Íj•tyRkƒLˆ*Cİf,¿yS8ß_õGãŞı`8d¸È
-+v*ëoÅ}ÃˆËR×f¨÷-?tÃÄ¥£Ó^ÄA•mA^L÷,–X©¦‚˜$WÎ)İR5¢K‚Å2Ûşs*­bˆZÁœ›¥±’ÅT~W³½Ù˜Éö=7nökIb§E±ÓÒ2±£µ(x´ºˆáàÓ}¯?_ŞÜwÕ‰=âc<À\“‘h?~í­Ì7\|º¹½,J²İÅëêºoÌ;­dfN$É™şõÛÎ»Wø_øÑÔ$HÜU%¸G©ĞV|<]wH?;¦v	~\qšç»Æ‰½„!·¹Æ, ˜{Î}¦ë¼
-+aêú3Iô¬µÄ²\&ÜvW4ü|©[¶àS×±' ‡‹ƒ¯–z->°\{„ 2?Z„•î„ğU_ê`¸ä bf+|DBv]dn"pÑ°¿²ğ»kûÜ@éwLnÒÜa:Û$Fê»Â¼$KòK¸Àİ`½ëó»«~F×7ÃxwàúŸúı;Z°ŞuÿŞîáÃÍİÕo0¸»ı×‹/$Yhmà?ô÷=ºAñÀ}‡Ûµäèk†««¹.ÖË‹B˜‡¡œ©êÌ
-+çÑco‘èã‰cªØ/5ô9Wzr_¥`P n¹¾Nlİy:çn&ö$v~ß»îêş¢Ó¢½„1'Âçxc01ğ>÷ï»šÒ<• ×_š¢)u‰ı³×¿Mm¥qªhk•èÄJ´â›¥9ĞFÔ0
-+D¬¬æ–1<a¶{¨OÜ%§¡©Ó«ÕJ¡a‚#1ÔıÔ=èª œ‘ª ŠŒLe4eœ@{µµÏpOZíN»]ßäû"KokÈøÑ8äAKƒ¯£HĞÅ“àâ5ñ¹¨oê³–ÒPê	½J‰—-aÛ!+†Ïëàv7r£7íôTiÚ`ÍØÙå¤È›Åƒiù©†¹õ¨÷şöüj8F,c2ë¾bíÄíÉEQ‰‰­Y„°aÌóùÔZw‰ªğwˆN†ÿ,ÂÈºFÍÀbÌ´Ñ³ˆl<­	6á,‘ º™CiGr%R$lX!Yğø®
-+;j~ˆ^ g»†nïN»\…|Á¾Ñ\q%õ-ÏÅ`€šv[Ø×eË{/õ<˜#›;áÜÇ xŞúO¢=+V*œêFµAhëu¶Mİ…ecK²X§‡A4\ö‡#qÂ¦&ï˜<SœéW½‡YİvŒmq™ 8š#¹ÒQ…<6	WĞ@	¹	UÃÓcTİ/®ğ57T$¬ˆ
-+,|ôğŒ ¦£™/¯‘`Š£óË›ø+–¾åÁ«ÿù
-+¾ü=æj Îˆ·‚ˆ88€I·Õó^bÛˆíãÒĞ!ÓJu•‰XC«idS­Öhÿo±éAXßB»€~Ñ¸dN¾¹Q˜–?€kd£=3üî¤ÌŠØ¦rM|Æ‚D,Ô‚\BYoÂ,©\ÚŠã÷eÌO°P•>gÌ&æväâ¸½Ä*ä"p]ÛDÖ±y 6ıxS4<…ïôî¨f‰D%ª“ş èTSã´ƒj4Öl@ãô¬^Ç_¥ş ¦vŠåšÖ¹^5{ùB*İyHŒjÆEM‚Åˆ¯Q\:å¢(“ôäjF‰!wã¢Çrp+¨5»¬	J—9˜{³ãM¼:Îv‘Ê"ó`ã.€ÙÀì	 Sb_È]d„æ‚2{¢P‹åvdr‘å8ÀœI7=ŒÄÜ’óTD{ú=	ËqU¢“–eÒûÀ
-+-aŸßÌŸV}?
-+×¸•Áš—¬‚G^îûaRĞøàò¶.´ª£9ÇÊ—*î(ˆp¥±rÆ¿H¬…{,×€ÖU,×\Cœk¾FX[ZâjnNågà.p«|7¢ä„’ö-à±Íş«SÔçÖ¯7ÄŠ\Øv8§’|*Jd,Ô“ûº7ß	mr“.kƒ¤º“!ú;ƒ_xü\ğoëâ"ú·}Õğ'ˆÊü˜ş¦¯IR^`d4ë!¼%ì4ª?>|ÇdNañ¼éüÕÏá„½ØO
-+…÷Q•ĞÌKV‘B^î ï%…‚ÆCóa¢¹A·“H
-+ò.)È	Ğä=@“Ë&Çw[âEå
-+Ç~”dBW|,§èÂ2-»Mr9ºÄ0Q
-+.¸:I>ù¦‰ñ…ŞøÊ.09'¼¹ÉÆì³êtÍD»ueœfÓ3qSXy7“h,Îü€p|:Ÿ
-+¿vÏ·æÿÃí¯†[dûî&â÷ê›0Ì¥˜‰¢M'U_{Ü·x¢ëvnB¥·0"á,y­l†8öñ,ğtçeº< Aäy.®’(Æ<L
-+¾º“ õñû½üo€oE·%9P[`ÔòÜô®llõFíD€HÜ_¤—äÓĞSfN$®ÇñS\á_×ï<n²’t¤a:JüJ@ö¢IòJ!nT—me·°ø¢?ÕPi;}ç¸y`ô¡`¸0e*=â¿4 óô€…Wr©R%½ğŒ’k”jé©_rá#§ò1‰·ZŠÃCÕóİ¯Üƒ-q¨"òv¾oƒÍÇÅ,yÉüCö__çø’Nxœ­W]l#WVš­cÏÆ›¤ëŸÄÎÏíí&;¾3±Ûi½MÖMKJ6I„–Uv2ÛCÆ3ff\oº ˆ'Ôè>}CB¼ ^@j_‘V ^[	*!ñÌ$*Á¹3¯M²»J”¹÷ÜsÎ=çs¾sò¯/}ã‡!"¿òÙmYÒ%òíSD™vİ-ß’ä#©®pV# fDgŠX( A\ÉdVÄ"—Å,ü,çÎä2fuéb…´  ÕU†MÎó‡ªÎJVƒLÏL‘ÏcÓ÷ùw$“—%¹¡ğMÅ”Ûæ1|m	·êÃ*rÃ@‰ÔŞZåÍõ½ƒre{wƒŠ¶­j$×eù4ESeò:L ›ˆ§ù¾ª´½úÿºæöy×\àâ 'ÃÊUWÃ’-_Œ¾é!ºZ!Ó#1ò±ÏO~á›s(S„™ ÿğ-’¯¬’èP0!›†ea«»á²C“’ªx®~"~âmÎcaEÌrB¾ .Ùb¾F–eÑÓU?sR¼Y!,¥òb)-æ!1Èı`œüş¥™¥j7°ul™†a—R›Ûåµ½í-„qUµ¤CMÁ:„ãñ®£˜¦a’ÊÕåèÙ’<ù{p²t–lÉ¬+À<ğşˆAMéHAø›©·¶oÁ<›ÂDŸO’Öø%©ºeKš?ŠFï!WêÖşÆæë¯oTd66k(Ä) ~e½Y*JÓxGA²¡×4U¶U½jª¦Xê²
-+j–MÄÃôRa»zÛ–É[ÉTxU¯dU—µvU )¶Ì×[¦QÓëœ)AÊzGÔÀ]ÛT[¨ïÒ M†­ÁKÁB2Áq”Z€—ä¶
-+wÔº{ÍCÙ¸	T*®¡z‹¾{K“qÃnj	tïH‚“ ;°œ[»â@¨©Tµ®0UµFş:#?ó è—#+‹ÏœŸäŠöÄË¿¬“…>PÒYš}él¢êC%ˆ?N¢¶¶‰Z¦RStÕPL…>Ô^CµüÒ8Ñà©IúFmU«Ò RúcÃ	ÚqáÒ¢r5ªu$İF¶!P€•ê1\YG‹¤ o"x2Û4ÒT®ÜPä#d€A‹i¤ÚÔ—	IuÒE•©å»Ûû•òú.MÅRjl¡Õ©.òø!SÈ¾ŸİÂ½\-¥Üsçv÷G­ô °|°œÃ”öÜl[ƒ½Š*ñFËæ[@åwıQÀ¢ŸøùÄ¿:…iÅ”Dˆˆ³H-è`ò"”ÊÀÍ!DÔÀû‘Ûû»›»¹q«\z“ş¥_c¾çwo­Ÿ2ó'Ø-’Èe.— r—ağ—×+[ë›i‰
-+œ 4G›'²Wôä‹ûX^yvP¾È‰; ¾ÌW.ß=ÁÔXWä²S”DÛnY+|÷™;PšœaÖy]éĞ
-+­õ; š
-+íÂóõ‹Ô¡ŞÛ‡œl4ù–*´‰ôİ
-+˜#;£~òñeÆ«‚µÑ(ùÛåìsTÂÚèË”;³Ì‰bF(f…¥b_%ˆK´5³ô“ëbò»`ù§‚qIÌàÌ„½Õ®.>4CŞM½À°¿~œò±.ùağùèÊ,ùÃØ1æçR=pu
-+MÒ,$™rÚÀ&˜©÷ğ‰ÜoÍö‹–‹çRs€õİhp“"mBöqKA5„•ŠÜ¶©ëRSA×op–qãº{rªÃ»@õğ;è¯8é
-+ĞO~âÈÇ#^d^›˜$âDî9"óÚÄuş|ŒÓyˆK:ï ”~a.şÖ\
-+iv&ÂaúHoxĞƒ N¶ÒD†®3ºO	Æšlû:<~<KÿºõV†Ã‰Å´×ÈáÓ—??d½D>RŠ|õ‰æÊ`ÿağ…ÌD1ù-
-+’;ÑâóÀã§{+ùMtÛóat²Òó¡>ä2Â>ŒNÆÉöäØÂ~Òp£àªä³‰ÑŠM‘c©>GŞ‹	€wÆnC>ÂôzvoÅ¿~Áâùk€0]0@Q|¥sÙVÓe=g&{ª—§UJÓäığıKÎæópaÖ/2‚«¿Ë`j®3¨Ğ²©…Î*e!€~]>òçxŠ|:ÌŒŸ¾üiø*À$Š_ØGKuúµÜç‚(µ=ñEëô[ïı'q/Rºáë
-+ü%¼ááíÅ!¢\d(<wÉYÌ‡#¯~‘¨xwõ"ãhûwøÕÄÎFyÛë?OúGOÉNd'ĞÃ`òA$;Òõ•¢èÆqÌïé×¦B
-+†§+!šxY~vÛ©Šs†ú-¡¼80T	Î¿zÎ@ÿv2‘aø”eì6íŞ’ü1±v‰¶lò09OrÉğPV	¢%¯0Kó ‰"ÔÖ'‰µ!ºÆYg5ŒQò³DŒü4‚ºû,#’W‚½ŞêÔ’XÚMES$K±2vzw¯jvëÉöİjz-Üıà8xA³BOz°—¯ŸİÌß_5:ºfHU^àò\¾Ç€­çüÿ Á£•Õà¥Ixœ  ßÿ°Bê¨ !S,Ÿ›BdäÍgË¨ğÅr“VHŞñ~á¢xœûîñÀcB‘ˆ¡‚¡±•‰±•©©¹‰¥¥Éä½¬RÈ@äŒ¬MôÍMMÌ7^¸ÉÕdbeh¬giiinjbdl	Ô¤‡ªÃ¤ÃÜlóÖGŒØµäJ(O–ààÇ®Íšã&3.m*“}xÄ°k+ã	b™|_ 	·V/Aq¸V#s=#ccc#KÓÍGópÛ8I”crŠŒêæé¢‡˜°*Úœ+Ì‚İMWd¢™°Ë8ËÅn(&§)ña×Ö¡ô iMk9à€}xœ›Ç:uC“ˆ`ƒ„ôJïß[Ë¿2~<i)vCÏBjr“ Ç7ï!1xœëõüí>aˆ¹‚¡±•±¥•¡±©‘±¡¥¥ÙÆM¾Ì@	#+S„©…±‰±™±™Åäı¼ª“_1‹Bt™šZ™ u™™™›oNd)Ã©Me2??Ô2C6KcCKK#ÓÍF•¬¸´YcÕ2™OŒÑxr‹õä¾œÍ
-+üQLŒ
-+“ÏòI1É¦BM¸Ôœ\/Ä9y­vƒ¥…¿àÒ©6ù0ûä :YD77‹d0a×ş_ÌU›ÔóAâ8´ ƒzóISÜ²“ÏJsnv–‰Á£¢Kgó9u*ä5±;*FÑ A%€oàƒ#xœ›Ç:uC“ˆİ®M»b×ù:K0“]ıuÃ­N“ë˜ âU°â!&xœûí¾ØuÂ<CC#+cC+Sc=sssSK#CÓ›|™¡FV¦¦zF&†fÆæff“'
-+«N~Å,ŠU×äDÑÉ…m'Ë±Šm>ÉâÏ8y± ìä^v/\F©LæçàÆbÔfC*V\ºÔ&{órOşÀË%S`l®gfinlbhd°™—O‚·Îx!1löMîúŠK“9N¿nş(œÁ„;˜Şˆ
-+LöãBÕnÒnl´ù€˜#n­›­$Mñ#Íµy“t4v›å"pê•¼B»ƒN)2 öš}àxœ›Ç:uƒ“H{‘pè¤§Ç^~*·æ^äU.©ù“Ã˜< Ú’’l….xœ{àqÜcÃM±ÍŸÄòx,WàDxœ›Ç:uC“HØD‡³²)WæİÖ¹ŸÎ1÷“ñššÉuL
-+ ÖK€à,xœ›Ç:uƒ“ˆÌ]Óc\Y¿—Op»¿TröM-;ˆÉaL Ë-oá†xœ{àqĞcCÿæşLöÍŸÄòxH3àuxœ›Ç:uƒ“È÷­m³ş±µ:Y)e‘FEÃŒ™"“Ã˜< ì£Ïå†fxœ{àñÑmB9¯¡‰•‘±‘…¹™¥…Åd]Q™‰ù­Lõ,LL-ÌŒ7^¸ÇÂThb®g`h``fbhh2Y_Tjr-+—§‘‘‘®¥®¡¡PšÖÍÿYŸ3òÁô‚ôMÖU™,Á!‚nÍfk{Ìü†¦@3ôŒÍLLÌ,-ö¨Nöå‘‰›˜ê˜Zššm.ãùÂ´¹€ÿ>ÓÕ&óòLvä×D³AA×ÀÄÀ€ËÁAA×ÈHè`måà09Wzr±˜ìæóBLh&nÖ]Í¸ù“X(«T'Ilî’PaÁğÌ^™& ĞÑæ†Æ†ÀP23İ¬#ÿİt !Ò“ı•„1(TzÏ EPcÌà‚?xœ›Ç:uƒ“ÈgíİûÔÃÅ¶'å-ÿ£ÂÊÕö­?gr“ Î»ÅìGKxœ•“MOAÇSÁÔ&U$•2EcËnç}w¶bJˆàÁÄ¨‰1šfYam»%»[‰!ÆÄ/ÀËÄ“OrÖ½xÑÄÄ³rñ+xğb¼rÑ-m=4™Læ™yş¿üç™y~ÏıœÛ„§Â†]öÊ[…YÄ-J,fê‚œ3ÆĞ …PQUØ~=´`Eë(F2§1ÄXƒBCûÚxÄZF‘‚@ønwçd/Ÿö’6ŸZĞĞ‘0a˜ú?_îö¦S-‰°0‹%È$TıéİJp'uû¸F«¹ŞòZ!Ü?T4M;HhïÉ‡iüâ¹Ç.±E¸M‚97 h›,•âÅ*š2@©¤¨—]Ï®6–p-—Üº¾r]QµP ‹1<«7|à9kÀ®×VİªãgÕõBÀke×ËO€uE`Õ·çÇWÜ Ä£š†Æ'ŠÍCß	¾`<W6Sr£ïb§oûŠİÖ³¿¬UO(šÏ176!‹Šı':Üâà¨ü1 wË.æ&[_€Zê„S„8¡ìHå0›@gå§dQ~úŞ£¨òÍĞ¨Ü;óá*P´Z¹â€…Å™ùèÑìÜ­™ù…éœv;ÈíÉ•¼·ê×í	µåçsFÇn%™‘ç“…níV’ùV)0²°¡C†	ÑNòAO‡]MÈtj²KvTM½ê ¶‡ºTog£×ÃëÏ±‘ÎJ¾ª-ßYÈÔ1%Mã”G_Óß‡IäûÑ;GÃK™¡–¡øoëqk™iDÓ™»‰åŠ\…èËØÍÆ@6w¯;çívZ[vÂãÍD›ÍDˆ€Œ`
-+£—Ù_‰¿Ñ¼=0ÊÃÜ“ ¬Ã6ù‰˜·jlh
-\ No newline at end of file
-diff -Naur cross-sh/.git/packed-refs cross-sh-mingw/.git/packed-refs
---- cross-sh/.git/packed-refs	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/packed-refs	2022-09-18 12:17:36.463767225 -0400
-@@ -0,0 +1,2 @@
-+# pack-refs with: peeled fully-peeled sorted 
-+2ba56b6221629dbc0e92cf82d822c597be999d57 refs/remotes/origin/main
-diff -Naur cross-sh/.git/refs/heads/main cross-sh-mingw/.git/refs/heads/main
---- cross-sh/.git/refs/heads/main	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/refs/heads/main	2022-09-18 12:17:36.464767226 -0400
-@@ -0,0 +1 @@
-+2ba56b6221629dbc0e92cf82d822c597be999d57
-diff -Naur cross-sh/.git/refs/remotes/origin/HEAD cross-sh-mingw/.git/refs/remotes/origin/HEAD
---- cross-sh/.git/refs/remotes/origin/HEAD	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/.git/refs/remotes/origin/HEAD	2022-09-18 12:17:36.464767226 -0400
-@@ -0,0 +1 @@
-+ref: refs/remotes/origin/main
 diff -Naur cross-sh/package.sh cross-sh-mingw/package.sh
---- cross-sh/package.sh	2022-09-18 12:43:45.419098455 -0400
-+++ cross-sh-mingw/package.sh	2022-09-18 12:17:44.162776289 -0400
+--- cross-sh/package.sh	2022-09-18 12:49:26.044374685 -0400
++++ cross-sh-mingw/package.sh	2022-09-18 12:48:51.020197164 -0400
 @@ -7,5 +7,5 @@
  tar -cvzpf $TARGET_CROSS-gcc.tar.xz $TARGET_CROSS-gcc
  tar -cvzpf $TARGET_CROSS-glibc.tar.xz $TARGET_CROSS-glibc
@@ -1243,8 +54,8 @@ diff -Naur cross-sh/package.sh cross-sh-mingw/package.sh
 +tar -cvpzf $TARGET_CROSS-mingw.tar.xz $TARGET_CROSS-mingw
  mv $TARGET_CROSS*.tar.xz /finished
 diff -Naur cross-sh/toolchain.conf cross-sh-mingw/toolchain.conf
---- cross-sh/toolchain.conf	2022-09-18 12:43:45.419098455 -0400
-+++ cross-sh-mingw/toolchain.conf	2022-09-18 12:17:44.162776289 -0400
+--- cross-sh/toolchain.conf	2022-09-18 12:49:26.044374685 -0400
++++ cross-sh-mingw/toolchain.conf	2022-09-18 12:48:51.020197164 -0400
 @@ -7,24 +7,20 @@
  SOURCES_DIR=/blfs/builds
  START_DIR=$(pwd)
@@ -1275,8 +86,8 @@ diff -Naur cross-sh/toolchain.conf cross-sh-mingw/toolchain.conf
  # Other options for libc, select which one you want above
  # https://www.musl-libc.org/
 diff -Naur cross-sh/toolchain_gcc_final.sh cross-sh-mingw/toolchain_gcc_final.sh
---- cross-sh/toolchain_gcc_final.sh	2022-09-18 12:43:58.201141604 -0400
-+++ cross-sh-mingw/toolchain_gcc_final.sh	2022-09-18 12:44:34.512264359 -0400
+--- cross-sh/toolchain_gcc_final.sh	2022-09-18 12:49:26.044374685 -0400
++++ cross-sh-mingw/toolchain_gcc_final.sh	2022-09-18 12:49:04.245264561 -0400
 @@ -15,24 +15,19 @@
  
  # Start the build
@@ -1308,8 +119,8 @@ diff -Naur cross-sh/toolchain_gcc_final.sh cross-sh-mingw/toolchain_gcc_final.sh
  # Delete the old files
  cd $BUILD_DIR
 diff -Naur cross-sh/toolchain_gcc_static.sh cross-sh-mingw/toolchain_gcc_static.sh
---- cross-sh/toolchain_gcc_static.sh	2022-09-18 12:43:45.420098458 -0400
-+++ cross-sh-mingw/toolchain_gcc_static.sh	2022-09-18 12:17:44.163776290 -0400
+--- cross-sh/toolchain_gcc_static.sh	2022-09-18 12:49:26.044374685 -0400
++++ cross-sh-mingw/toolchain_gcc_static.sh	2022-09-18 12:48:51.020197164 -0400
 @@ -12,21 +12,15 @@
  
  # Start the build
@@ -1336,7 +147,7 @@ diff -Naur cross-sh/toolchain_gcc_static.sh cross-sh-mingw/toolchain_gcc_static.
  # Delete the old files
  cd $BUILD_DIR
 diff -Naur cross-sh/toolchain_glibc.sh cross-sh-mingw/toolchain_glibc.sh
---- cross-sh/toolchain_glibc.sh	2022-09-18 12:43:45.420098458 -0400
+--- cross-sh/toolchain_glibc.sh	2022-09-18 12:49:26.045374690 -0400
 +++ cross-sh-mingw/toolchain_glibc.sh	1969-12-31 19:00:00.000000000 -0500
 @@ -1,26 +0,0 @@
 -#!/bin/bash
@@ -1366,7 +177,7 @@ diff -Naur cross-sh/toolchain_glibc.sh cross-sh-mingw/toolchain_glibc.sh
 -cd $BUILD_DIR
 -rm -rf $pkg-$GLIBC_VER
 diff -Naur cross-sh/toolchain_linux_headers.sh cross-sh-mingw/toolchain_linux_headers.sh
---- cross-sh/toolchain_linux_headers.sh	2022-09-18 12:43:45.420098458 -0400
+--- cross-sh/toolchain_linux_headers.sh	2022-09-18 12:49:26.045374690 -0400
 +++ cross-sh-mingw/toolchain_linux_headers.sh	1969-12-31 19:00:00.000000000 -0500
 @@ -1,28 +0,0 @@
 -#!/bin/bash
@@ -1399,7 +210,7 @@ diff -Naur cross-sh/toolchain_linux_headers.sh cross-sh-mingw/toolchain_linux_he
 -rm -rf $pkg-$KERNEL_VER
 diff -Naur cross-sh/toolchain_mingw_headers.sh cross-sh-mingw/toolchain_mingw_headers.sh
 --- cross-sh/toolchain_mingw_headers.sh	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/toolchain_mingw_headers.sh	2022-09-18 12:17:44.163776290 -0400
++++ cross-sh-mingw/toolchain_mingw_headers.sh	2022-09-18 12:48:51.020197164 -0400
 @@ -0,0 +1,24 @@
 +#!/bin/bash
 +set -e
@@ -1427,7 +238,7 @@ diff -Naur cross-sh/toolchain_mingw_headers.sh cross-sh-mingw/toolchain_mingw_he
 +rm -rf mingw-w64-v10.0.0
 diff -Naur cross-sh/toolchain_mingw.sh cross-sh-mingw/toolchain_mingw.sh
 --- cross-sh/toolchain_mingw.sh	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/toolchain_mingw.sh	2022-09-18 12:17:44.163776290 -0400
++++ cross-sh-mingw/toolchain_mingw.sh	2022-09-18 12:48:51.020197164 -0400
 @@ -0,0 +1,34 @@
 +#!/bin/bash
 +set -e
@@ -1463,578 +274,9 @@ diff -Naur cross-sh/toolchain_mingw.sh cross-sh-mingw/toolchain_mingw.sh
 +# Delete the old files
 +cd $BUILD_DIR
 +rm -rf mingw-w64-v10.0.0
-diff -Naur cross-sh/tucana-mingw.patch cross-sh-mingw/tucana-mingw.patch
---- cross-sh/tucana-mingw.patch	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/tucana-mingw.patch	2022-09-18 12:17:36.465767227 -0400
-@@ -0,0 +1,284 @@
-+diff -Naur cross-sh/build_toolchain.sh cross-sh-mingw/build_toolchain.sh
-+--- cross-sh/build_toolchain.sh	2022-09-18 12:12:27.799240295 -0400
-++++ cross-sh-mingw/build_toolchain.sh	2022-09-18 12:13:56.323592438 -0400
-+@@ -14,36 +14,14 @@
-+ echo "Building Binutils..."
-+ bash toolchain_binutils.sh &> /dev/null
-+ error_check "$?"
-++echo "Building mingw headers"
-++bash toolchain_mingw_headers.sh &> /dev/null
-+ echo "Building GCC Stage 1..."
-+ bash toolchain_gcc_static.sh &> /dev/null
-+ error_check "$?"
-+-echo "Copying the Linux API Headers..."
-+-bash toolchain_linux_headers.sh &> /dev/null
-+-error_check "$?"
-+-if [[ $LIBC == GLIBC ]]
-+-then
-+-   echo "Building GLIBC"
-+-   bash toolchain_glibc.sh &> /dev/null
-+-   error_check "$?"
-+-elif [[ $LIBC == MUSL ]]
-+-then
-+-   echo "Building Musl"
-+-   bash toolchain_musl.sh &> /dev/null
-+-   error_check "$?"
-+-elif [[ $LIBC == PICOLIBC ]]
-+-then
-+-   bash toolchain_picolibc &> /dev/null
-+-   error_check "$?"
-+-elif [[ $LIBC == NEWLIB ]]
-+-then
-+-    bash toolchain_newlib.sh &> /dev/null
-+-    error_check "$?"
-+-else 
-+-	echo "LIBC Variable is invalid check your toolchain.conf"
-+-fi
-+-
-+-
-++echo "Building mingw"
-++bash toolchain_mingw.sh &> /dev/null
-+ echo "Building the final stage of GCC..."
-+ bash toolchain_gcc_final.sh &> /dev/null
-+ error_check "$?"
-+-echo "All Done, remember to add $LOCATION/usr/bin to your path"
-++echo "Run package.sh"
-+diff -Naur cross-sh/package.sh cross-sh-mingw/package.sh
-+--- cross-sh/package.sh	2022-09-18 12:12:33.222261893 -0400
-++++ cross-sh-mingw/package.sh	2022-09-18 12:13:56.323592438 -0400
-+@@ -7,5 +7,5 @@
-+ tar -cvzpf $TARGET_CROSS-gcc.tar.xz $TARGET_CROSS-gcc
-+ tar -cvzpf $TARGET_CROSS-glibc.tar.xz $TARGET_CROSS-glibc
-+ tar -cvpzf $TARGET_CROSS-binutils.tar.xz $TARGET_CROSS-binutils
-+-tar -cvzpf $TARGET_CROSS-linux-api-headers.tar.xz $TARGET_CROSS-linux-api-headers
-++tar -cvpzf $TARGET_CROSS-mingw.tar.xz $TARGET_CROSS-mingw
-+ mv $TARGET_CROSS*.tar.xz /finished
-+diff -Naur cross-sh/toolchain.conf cross-sh-mingw/toolchain.conf
-+--- cross-sh/toolchain.conf	2022-09-18 12:12:33.222261893 -0400
-++++ cross-sh-mingw/toolchain.conf	2022-09-18 12:13:56.324592442 -0400
-+@@ -7,24 +7,20 @@
-+ SOURCES_DIR=/blfs/builds
-+ START_DIR=$(pwd)
-+ BUILD_DIR=/blfs/builds
-+-TARGET_CROSS=aarch64-linux-gnu
-++TARGET_CROSS=x86_64-w64-mingw32
-+ LOCATION=/
-+ HOST=x86_64-linux-gnu
-+ PATH=$LOCATION/usr/bin:$PATH
-+ JOBS=$(nproc)
-+-# Select your libc here don't forget to set the version below
-+-# Available options are GLIBC, NEWLIB, MUSL or PICOLIBC  if you want java compatiablity choose glibc otherwise it is reccommended to choose musl
-+-LIBC=GLIBC
-++
-++# DO NOT CHANGE, THIS BUILD HAS BEEN PATCHED FOR MINGW ONLY!!!
-++LIBC=MINGW
-+ 
-+ 
-+-# For the kernel, check here for what to put https://github.com/torvalds/linux/tree/master/arch.  Leave it blank for host kernel
-+-ARCH=arm64
-+ 
-+ # Package Versions
-+ LD_VER=2.39
-+ CC_VER=12.2.0
-+-KERNEL_VER=5.19.2
-+-GLIBC_VER=2.36
-+ 
-+ # Other options for libc, select which one you want above
-+ # https://www.musl-libc.org/
-+diff -Naur cross-sh/toolchain_gcc_final.sh cross-sh-mingw/toolchain_gcc_final.sh
-+--- cross-sh/toolchain_gcc_final.sh	2022-09-18 12:12:33.223261897 -0400
-++++ cross-sh-mingw/toolchain_gcc_final.sh	2022-09-18 12:15:19.745655095 -0400
-+@@ -15,20 +15,17 @@
-+ 
-+ # Start the build
-+ 
-+-tar -xf $SOURCES_DIR/mpfr-4.1.0.tar.xz
-+-mv -v mpfr-4.1.0 mpfr
-+-tar -xf $SOURCES_DIR/gmp-6.2.1.tar.xz
-+-mv -v gmp-6.2.1 gmp
-+-tar -xf $SOURCES_DIR/mpc-1.2.1.tar.gz
-+-mv -v mpc-1.2.1 mpc
-+ 
-+ mkdir build
-+ cd build
-+ 
-+-CFLAGS_FOR_TARGET='-O2' CFLAGS='-O2' ../configure --prefix=/usr --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS --disable-werror --with-sysroot=/usr/$TARGET_CROSS --with-build-sysroot=/usr/$TARGET_CROSS --with-local-prefix=/usr/$TARGET_CROSS --with-system-zlib 
-+-make CFLAGS_FOR_TARGET='-O2' CFLAGS='-O2' BOOT_CFLAGS='-O2' -j$(nproc)
-++../configure --prefix=/usr --disable-shared --disable-threads --enable-languages=c,c++ --disable-multilib --target=x86_64-w64-mingw32 --with-build-sysroot=/usr/x86_64-w64-mingw32 --disable-libstdcxx --disable-libatomic
-++
-++
-++make -j$(nproc)
-+ make DESTDIR=$LOCATION install
-+ make DESTDIR=/pkgs/$TARGET_CROSS-$pkg install
-++
-+ # Thanks arch btw 
-+   find /pkgs/$TARGET_CROSS-$pkg/usr/bin/ /pkgs/$TARGET_CROSS-$pkg/usr/libexec/gcc/$TARGET_CROSS/ -type f -and \( -executable \) -exec strip '{}' \;
-+ # Strip the target libs
-+diff -Naur cross-sh/toolchain_gcc_static.sh cross-sh-mingw/toolchain_gcc_static.sh
-+--- cross-sh/toolchain_gcc_static.sh	2022-09-18 12:12:33.223261897 -0400
-++++ cross-sh-mingw/toolchain_gcc_static.sh	2022-09-18 12:13:56.324592442 -0400
-+@@ -12,21 +12,15 @@
-+ 
-+ # Start the build
-+ 
-+-tar -xf $SOURCES_DIR/mpfr-4.1.0.tar.xz
-+-mv -v mpfr-4.1.0 mpfr
-+-tar -xf $SOURCES_DIR/gmp-6.2.1.tar.xz
-+-mv -v gmp-6.2.1 gmp
-+-tar -xf $SOURCES_DIR/mpc-1.2.1.tar.gz
-+-mv -v mpc-1.2.1 mpc
-+ 
-+ mkdir build
-+ cd build
-+ 
-+-../configure --prefix=/usr --disable-threads --disable-shared --with-newlib --without-headers --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS
-++../configure --prefix=/usr --disable-threads --disable-shared --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS
-+ 
-+-make all-gcc all-target-libgcc -j$JOBS
-++make all-gcc -j$JOBS
-+ 
-+-PATH=$LOCATION/usr/bin:$PATH make DESTDIR=$LOCATION install-gcc install-target-libgcc
-++make install-gcc
-+ 
-+ # Delete the old files
-+ cd $BUILD_DIR
-+diff -Naur cross-sh/toolchain_glibc.sh cross-sh-mingw/toolchain_glibc.sh
-+--- cross-sh/toolchain_glibc.sh	2022-09-18 12:12:33.223261897 -0400
-++++ cross-sh-mingw/toolchain_glibc.sh	1969-12-31 19:00:00.000000000 -0500
-+@@ -1,26 +0,0 @@
-+-#!/bin/bash
-+-set -e
-+-# Source the configuration
-+-source toolchain.conf
-+-
-+-pkg=glibc
-+-# Untar
-+-
-+-cd $BUILD_DIR
-+-tar -xvf $SOURCES_DIR/$pkg-$GLIBC_VER.tar.xz
-+-cd $pkg-$GLIBC_VER
-+-
-+-# Start the build
-+-
-+-mkdir build
-+-cd build
-+-
-+-../configure --prefix=/usr --host=$TARGET_CROSS --with-headers=$LOCATION/usr/$TARGET_CROSS/usr/include libc_cv_slibdir=/usr/lib
-+-
-+-make -j$JOBS
-+-
-+-make install_root=/usr/$TARGET_CROSS install
-+-make install_root=/pkgs/$TARGET_CROSS-$pkg/usr/$TARGET_CROSS install
-+-# Delete the old files
-+-cd $BUILD_DIR
-+-rm -rf $pkg-$GLIBC_VER
-+diff -Naur cross-sh/toolchain_linux_headers.sh cross-sh-mingw/toolchain_linux_headers.sh
-+--- cross-sh/toolchain_linux_headers.sh	2022-09-18 12:12:33.223261897 -0400
-++++ cross-sh-mingw/toolchain_linux_headers.sh	1969-12-31 19:00:00.000000000 -0500
-+@@ -1,28 +0,0 @@
-+-#!/bin/bash
-+-
-+-# These are usually called linux-api-headers on different distros, just in case you have some trouble with these
-+-
-+-# Exit on error (not really needed for this package)
-+-set -e
-+-# Source the configuration
-+-source toolchain.conf
-+-
-+-# This is what the tar is called
-+-pkg=linux
-+-# Untar
-+-
-+-cd $BUILD_DIR
-+-tar -xvf $SOURCES_DIR/$pkg-$KERNEL_VER.tar.xz
-+-cd $pkg-$KERNEL_VER
-+-
-+-# Start the build
-+-
-+-make ARCH=$ARCH headers
-+-mkdir -p $LOCATION/usr/$TARGET_CROSS/usr/include
-+-cp -rpv usr/include/* $LOCATION/usr/$TARGET_CROSS/usr/include
-+-
-+-mkdir -p /pkgs/$TARGET_CROSS-linux-api-headers/usr/$TARGET_CROSS/usr/include
-+-cp -rpv usr/include/* /pkgs/$TARGET_CROSS-linux-api-headers/usr/$TARGET_CROSS/usr/include
-+-# Delete the old files
-+-cd $BUILD_DIR
-+-rm -rf $pkg-$KERNEL_VER
-+diff -Naur cross-sh/toolchain_mingw_headers.sh cross-sh-mingw/toolchain_mingw_headers.sh
-+--- cross-sh/toolchain_mingw_headers.sh	1969-12-31 19:00:00.000000000 -0500
-++++ cross-sh-mingw/toolchain_mingw_headers.sh	2022-09-18 12:13:56.324592442 -0400
-+@@ -0,0 +1,24 @@
-++#!/bin/bash
-++set -e
-++# Source the configuration
-++source toolchain.conf
-++# For Build System Only
-++pkg=mingw
-++# Untar
-++
-++cd $BUILD_DIR
-++tar -xvf $SOURCES_DIR/mingw-w64-v10.0.0.tar.bz2
-++cd mingw-w64-v10.0.0
-++
-++# Start the build
-++
-++cd mingw-w64-headers
-++
-++./configure --prefix=/usr/$TARGET_CROSS 
-++
-++make -j$JOBS
-++
-++make install
-++# Delete the old files
-++cd $BUILD_DIR
-++rm -rf mingw-w64-v10.0.0
-+diff -Naur cross-sh/toolchain_mingw.sh cross-sh-mingw/toolchain_mingw.sh
-+--- cross-sh/toolchain_mingw.sh	1969-12-31 19:00:00.000000000 -0500
-++++ cross-sh-mingw/toolchain_mingw.sh	2022-09-18 12:13:56.324592442 -0400
-+@@ -0,0 +1,34 @@
-++#!/bin/bash
-++set -e
-++# Source the configuration
-++source toolchain.conf
-++# For Build System Only
-++pkg=mingw
-++# Untar
-++
-++cd $BUILD_DIR
-++tar -xvf $SOURCES_DIR/mingw-w64-v10.0.0.tar.bz2
-++cd mingw-w64-v10.0.0
-++
-++# Start the build
-++
-++cd mingw-w64-headers
-++
-++./configure --prefix=/usr/$TARGET_CROSS 
-++
-++make
-++make DESTDIR=/pkgs/$TARGET_CROSS-mingw install
-++make install
-++
-++cd ..
-++
-++./configure --enable-experimental --prefix=/usr/x86_64-w64-mingw32 --host=x86_64-w64-mingw32
-++# For some reason mingw doesn't support multiple jobs
-++make
-++
-++make DESTDIR=/pkgs/$TARGET_CROSS-mingw install
-++make install
-++
-++# Delete the old files
-++cd $BUILD_DIR
-++rm -rf mingw-w64-v10.0.0
-+diff -Naur cross-sh/wget cross-sh-mingw/wget
-+--- cross-sh/wget	2022-09-18 12:12:33.223261897 -0400
-++++ cross-sh-mingw/wget	2022-09-18 12:13:56.324592442 -0400
-+@@ -1,7 +1,3 @@
-+ https://ftp.gnu.org/gnu/gcc/gcc-12.2.0/gcc-12.2.0.tar.xz
-+-https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.19.2.tar.xz
-+ https://ftp.gnu.org/gnu/binutils/binutils-2.39.tar.xz
-+-https://ftp.gnu.org/gnu/glibc/glibc-2.36.tar.xz
-+-https://ftp.gnu.org/gnu/gmp/gmp-6.2.1.tar.xz
-+-https://ftp.gnu.org/gnu/mpc/mpc-1.2.1.tar.gz
-+-https://ftp.gnu.org/gnu/mpfr/mpfr-4.1.0.tar.xz
-++https://sourceforge.net/projects/mingw-w64/files/mingw-w64/mingw-w64-release/mingw-w64-v10.0.0.tar.bz2
-diff -Naur cross-sh/tucana.patch cross-sh-mingw/tucana.patch
---- cross-sh/tucana.patch	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-mingw/tucana.patch	2022-09-18 12:17:36.465767227 -0400
-@@ -0,0 +1,277 @@
-+diff -Naur cross-sh/package.sh cross-sh-tucana/package.sh
-+--- cross-sh/package.sh	1969-12-31 19:00:00.000000000 -0500
-++++ cross-sh-tucana/package.sh	2022-09-18 12:00:29.422323264 -0400
-+@@ -0,0 +1,11 @@
-++#!/bin/bash
-++source toolchain.conf
-++mkdir -p /pkgs/$TARGET_CROSS/var/cache/mercury/meta-pkgs
-++echo "$TARGET_CROSS-binutils $TARGET_CROSS-gcc $TARGET_CROSS-glibc $TARGET_CROSS-linux-api-headers" > /pkgs/$TARGET_CROSS/depend
-++echo "$TARGET_CROSS-binutils $TARGET_CROSS-gcc $TARGET_CROSS-glibc $TARGET_CROSS-linux-api-headers" > /pkgs/$TARGET_CROSS/var/cache/mercury/meta-pkgs/$TARGET_CROSS
-++cd /pkgs
-++tar -cvzpf $TARGET_CROSS-gcc.tar.xz $TARGET_CROSS-gcc
-++tar -cvzpf $TARGET_CROSS-glibc.tar.xz $TARGET_CROSS-glibc
-++tar -cvpzf $TARGET_CROSS-binutils.tar.xz $TARGET_CROSS-binutils
-++tar -cvzpf $TARGET_CROSS-linux-api-headers.tar.xz $TARGET_CROSS-linux-api-headers
-++mv $TARGET_CROSS*.tar.xz /finished
-+diff -Naur cross-sh/toolchain_binutils.sh cross-sh-tucana/toolchain_binutils.sh
-+--- cross-sh/toolchain_binutils.sh	2022-09-18 12:08:23.178261397 -0400
-++++ cross-sh-tucana/toolchain_binutils.sh	2022-09-18 12:00:29.422323264 -0400
-+@@ -15,12 +15,27 @@
-+ mkdir build
-+ cd build
-+ 
-+-../configure --prefix=/usr --with-sysroot=$LOCATION --disable-nls --disable-werror --target=$TARGET_CROSS
-++../configure --prefix=/usr --with-sysroot=$LOCATION/$TARGET_CROSS --disable-nls --disable-werror --target=$TARGET_CROSS
-+ 
-+ make -j$JOBS
-+ 
-+ make DESTDIR=$LOCATION install
-+-
-++make DESTDIR=/pkgs/$TARGET_CROSS-$pkg install
-+ # Delete the old files
-+ cd $BUILD_DIR
-+ rm -rf $pkg-$LD_VER
-++# Remove conflicting files conflicting with the host
-++cd /pkgs/$TARGET_CROSS-$pkg
-++rm -rf usr/share/info
-++rm -rf usr/include
-++rm -rf usr/etc/gprofng.rc
-++rm -rf usr/lib/gprofng
-++# Strip 
-++cd /pkgs/$TARGET_CROSS-$pkg/usr/bin
-++for binary in $(ls .)
-++do
-++	if [[ ! "$binary" == "$TARGET_CROSS-gp-display-html" ]]
-++	then
-++		strip $binary
-++	fi
-++done
-+diff -Naur cross-sh/toolchain.conf cross-sh-tucana/toolchain.conf
-+--- cross-sh/toolchain.conf	2022-09-18 12:08:23.178261397 -0400
-++++ cross-sh-tucana/toolchain.conf	2022-09-18 12:00:29.423323268 -0400
-+@@ -1,32 +1,34 @@
-+ #!/bin/bash
-+ 
-+-# Put your prefences here
-++# This is the config for building the Tucana Packages
-++# If you want to use this to build for another distro,
-++# Check out cross-sh, it is distro agnostic
-+ 
-+-SOURCES_DIR=$(pwd)/sources
-++SOURCES_DIR=/blfs/builds
-+ START_DIR=$(pwd)
-+-BUILD_DIR=$(pwd)/build
-+-TARGET_CROSS=x86_64-linux-musl
-+-LOCATION=/opt/cross
-++BUILD_DIR=/blfs/builds
-++TARGET_CROSS=aarch64-linux-gnu
-++LOCATION=/
-+ HOST=x86_64-linux-gnu
-+ PATH=$LOCATION/usr/bin:$PATH
-+-JOBS=20
-++JOBS=$(nproc)
-+ # Select your libc here don't forget to set the version below
-+ # Available options are GLIBC, NEWLIB, MUSL or PICOLIBC  if you want java compatiablity choose glibc otherwise it is reccommended to choose musl
-+-LIBC=MUSL
-++LIBC=GLIBC
-+ 
-+ 
-+ # For the kernel, check here for what to put https://github.com/torvalds/linux/tree/master/arch.  Leave it blank for host kernel
-+-ARCH=x86_64
-++ARCH=arm64
-+ 
-+ # Package Versions
-+-LD_VER=2.38
-+-CC_VER=12.1.0
-+-KERNEL_VER=5.18.10
-+-GLIBC_VER=2.35
-++LD_VER=2.39
-++CC_VER=12.2.0
-++KERNEL_VER=5.19.2
-++GLIBC_VER=2.36
-+ 
-+ # Other options for libc, select which one you want above
-+ # https://www.musl-libc.org/
-+-MUSL_VER=1.2.3
-++#MUSL_VER=1.2.3
-+ # https://sourceware.org/newlib/
-+ #NEWLIB_VERSION
-+ # https://github.com/picolibc/picolibc
-+diff -Naur cross-sh/toolchain_gcc_final.sh cross-sh-tucana/toolchain_gcc_final.sh
-+--- cross-sh/toolchain_gcc_final.sh	2022-09-18 12:08:23.178261397 -0400
-++++ cross-sh-tucana/toolchain_gcc_final.sh	2022-09-18 12:08:06.220193159 -0400
-+@@ -25,11 +25,14 @@
-+ mkdir build
-+ cd build
-+ 
-+-../configure --prefix=/usr --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS --with-sysroot=$LOCATION --disable-werror 
-+-
-+-make -j$JOBS
-+-
-+-sudo make PATH=$LOCATION/usr/bin:$PATH DESTDIR=$LOCATION install
-++CFLAGS_FOR_TARGET='-O2' CFLAGS='-O2' ../configure --prefix=/usr --enable-languages=c,c++ --disable-multilib --target=$TARGET_CROSS --disable-werror --with-sysroot=/usr/$TARGET_CROSS --with-build-sysroot=/usr/$TARGET_CROSS --with-local-prefix=/usr/$TARGET_CROSS --with-system-zlib 
-++make CFLAGS_FOR_TARGET='-O2' CFLAGS='-O2' BOOT_CFLAGS='-O2' -j$(nproc)
-++make DESTDIR=$LOCATION install
-++make DESTDIR=/pkgs/$TARGET_CROSS-$pkg install
-++# Thanks arch btw 
-++  find /pkgs/$TARGET_CROSS-$pkg/usr/bin/ /pkgs/$TARGET_CROSS-$pkg/usr/libexec/gcc/$TARGET_CROSS/ -type f -and \( -executable \) -exec strip '{}' \;
-++# Strip the target libs
-++find /pkgs/$TARGET_CROSS-$pkg/usr/$TARGET_CROSS/lib64 -type f -executable -name '*.so*' -exec $TARGET_CROSS-strip {} \;
-+ 
-+ # Delete the old files
-+ cd $BUILD_DIR
-+diff -Naur cross-sh/toolchain_gcc_static.sh cross-sh-tucana/toolchain_gcc_static.sh
-+--- cross-sh/toolchain_gcc_static.sh	2022-09-18 12:08:23.178261397 -0400
-++++ cross-sh-tucana/toolchain_gcc_static.sh	2022-09-18 12:00:29.423323268 -0400
-+@@ -2,7 +2,7 @@
-+ set -e
-+ # Source the configuration
-+ source toolchain.conf
-+-
-++# For build system only
-+ pkg=gcc
-+ # Untar
-+ 
-+diff -Naur cross-sh/toolchain_glibc.sh cross-sh-tucana/toolchain_glibc.sh
-+--- cross-sh/toolchain_glibc.sh	2022-09-18 12:08:23.178261397 -0400
-++++ cross-sh-tucana/toolchain_glibc.sh	2022-09-18 12:00:29.423323268 -0400
-+@@ -15,12 +15,12 @@
-+ mkdir build
-+ cd build
-+ 
-+-../configure --prefix=/usr --host=$TARGET_CROSS --with-headers=$LOCATION/usr/include
-++../configure --prefix=/usr --host=$TARGET_CROSS --with-headers=$LOCATION/usr/$TARGET_CROSS/usr/include libc_cv_slibdir=/usr/lib
-+ 
-+ make -j$JOBS
-+ 
-+-make DESTDIR=$LOCATION install
-+-
-++make install_root=/usr/$TARGET_CROSS install
-++make install_root=/pkgs/$TARGET_CROSS-$pkg/usr/$TARGET_CROSS install
-+ # Delete the old files
-+ cd $BUILD_DIR
-+ rm -rf $pkg-$GLIBC_VER
-+diff -Naur cross-sh/toolchain_linux_headers.sh cross-sh-tucana/toolchain_linux_headers.sh
-+--- cross-sh/toolchain_linux_headers.sh	2022-09-18 12:08:23.179261401 -0400
-++++ cross-sh-tucana/toolchain_linux_headers.sh	2022-09-18 12:00:29.423323268 -0400
-+@@ -18,8 +18,11 @@
-+ # Start the build
-+ 
-+ make ARCH=$ARCH headers
-+-cp -rpv usr/include/* $LOCATION/usr/include
-++mkdir -p $LOCATION/usr/$TARGET_CROSS/usr/include
-++cp -rpv usr/include/* $LOCATION/usr/$TARGET_CROSS/usr/include
-+ 
-++mkdir -p /pkgs/$TARGET_CROSS-linux-api-headers/usr/$TARGET_CROSS/usr/include
-++cp -rpv usr/include/* /pkgs/$TARGET_CROSS-linux-api-headers/usr/$TARGET_CROSS/usr/include
-+ # Delete the old files
-+ cd $BUILD_DIR
-+ rm -rf $pkg-$KERNEL_VER
-+diff -Naur cross-sh/toolchain_musl.sh cross-sh-tucana/toolchain_musl.sh
-+--- cross-sh/toolchain_musl.sh	2022-09-18 12:08:23.179261401 -0400
-++++ cross-sh-tucana/toolchain_musl.sh	1969-12-31 19:00:00.000000000 -0500
-+@@ -1,26 +0,0 @@
-+-#!/bin/bash
-+-set -e
-+-# Source the configuration
-+-source toolchain.conf
-+-
-+-pkg=musl
-+-# Untar
-+-
-+-cd $BUILD_DIR
-+-tar -xvf $SOURCES_DIR/$pkg-$MUSL_VER.tar.gz
-+-cd $pkg-$MUSL_VER
-+-
-+-# Start the build
-+-
-+-mkdir build
-+-cd build
-+-
-+-../configure --prefix=/usr --host=$TARGET_CROSS 
-+-
-+-make -j$JOBS
-+-
-+-make DESTDIR=$LOCATION install
-+-
-+-# Delete the old files
-+-cd $BUILD_DIR
-+-rm -rf $pkg-$MUSL_VER
-+diff -Naur cross-sh/toolchain_newlib.sh cross-sh-tucana/toolchain_newlib.sh
-+--- cross-sh/toolchain_newlib.sh	2022-09-18 12:08:23.179261401 -0400
-++++ cross-sh-tucana/toolchain_newlib.sh	1969-12-31 19:00:00.000000000 -0500
-+@@ -1,26 +0,0 @@
-+-#!/bin/bash
-+-set -e
-+-# Source the configuration
-+-source toolchain.conf
-+-
-+-pkg=newlib
-+-# Untar
-+-
-+-cd $BUILD_DIR
-+-tar -xvf $SOURCES_DIR/$pkg-$NEWLIB_VER.tar.xz
-+-cd $pkg-$NEWLIB_VER
-+-
-+-# Start the build
-+-
-+-mkdir build
-+-cd build
-+-
-+-../configure --prefix=/usr --host=$TARGET_CROSS --with-headers=$LOCATION/include
-+-
-+-make -j$JOBS
-+-
-+-make DESTDIR=$LOCATION install
-+-
-+-# Delete the old files
-+-cd $BUILD_DIR
-+-rm -rf $pkg-$NEWLIB_VER
-+diff -Naur cross-sh/toolchain_picolibc.sh cross-sh-tucana/toolchain_picolibc.sh
-+--- cross-sh/toolchain_picolibc.sh	2022-09-18 12:08:23.179261401 -0400
-++++ cross-sh-tucana/toolchain_picolibc.sh	1969-12-31 19:00:00.000000000 -0500
-+@@ -1,26 +0,0 @@
-+-#!/bin/bash
-+-set -e
-+-# Source the configuration
-+-source toolchain.conf
-+-
-+-pkg=picolibc
-+-# Untar
-+-
-+-cd $BUILD_DIR
-+-tar -xvf $SOURCES_DIR/$pkg-$PICOLIBC_VER.tar.xz
-+-cd $pkg-$PICOLIBC_VER
-+-
-+-# Start the build
-+-
-+-mkdir build
-+-cd build
-+-
-+-../configure --prefix=$LOCATION/usr --host=$TARGET_CROSS --with-headers=$LOCATION/include
-+-
-+-make -j$JOBS
-+-
-+-make install
-+-
-+-# Delete the old files
-+-cd $BUILD_DIR
-+-rm -rf $pkg-$PICOLIBC_VER
-+diff -Naur cross-sh/wget cross-sh-tucana/wget
-+--- cross-sh/wget	2022-09-18 12:08:23.179261401 -0400
-++++ cross-sh-tucana/wget	2022-09-18 12:00:29.424323272 -0400
-+@@ -1,10 +1,7 @@
-+-https://ftp.gnu.org/gnu/gcc/gcc-12.1.0/gcc-12.1.0.tar.xz
-+-https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.18.10.tar.xz
-+-https://ftp.gnu.org/gnu/binutils/binutils-2.38.tar.xz
-+-https://ftp.gnu.org/gnu/glibc/glibc-2.35.tar.xz
-++https://ftp.gnu.org/gnu/gcc/gcc-12.2.0/gcc-12.2.0.tar.xz
-++https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.19.2.tar.xz
-++https://ftp.gnu.org/gnu/binutils/binutils-2.39.tar.xz
-++https://ftp.gnu.org/gnu/glibc/glibc-2.36.tar.xz
-+ https://ftp.gnu.org/gnu/gmp/gmp-6.2.1.tar.xz
-+ https://ftp.gnu.org/gnu/mpc/mpc-1.2.1.tar.gz
-+ https://ftp.gnu.org/gnu/mpfr/mpfr-4.1.0.tar.xz
-+-https://musl.libc.org/releases/musl-1.2.3.tar.gz
-+-ftp://sourceware.org/pub/newlib/newlib-4.2.0.20211231.tar.gz
-+-https://github.com/picolibc/picolibc/releases/download/1.7.7/picolibc-1.7.7.tar.xz
 diff -Naur cross-sh/wget cross-sh-mingw/wget
---- cross-sh/wget	2022-09-18 12:43:45.421098461 -0400
-+++ cross-sh-mingw/wget	2022-09-18 12:17:44.163776290 -0400
+--- cross-sh/wget	2022-09-18 12:49:26.045374690 -0400
++++ cross-sh-mingw/wget	2022-09-18 12:48:51.020197164 -0400
 @@ -1,7 +1,3 @@
  https://ftp.gnu.org/gnu/gcc/gcc-12.2.0/gcc-12.2.0.tar.xz
 -https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.19.2.tar.xz
