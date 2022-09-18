@@ -89,8 +89,8 @@ diff -Naur cross-sh/toolchain.conf cross-sh-mingw/toolchain.conf
  # https://www.musl-libc.org/
 diff -Naur cross-sh/toolchain_gcc_final.sh cross-sh-mingw/toolchain_gcc_final.sh
 --- cross-sh/toolchain_gcc_final.sh	2022-09-18 13:10:38.143029249 -0400
-+++ cross-sh-mingw/toolchain_gcc_final.sh	2022-09-18 13:09:53.850862119 -0400
-@@ -15,24 +15,17 @@
++++ cross-sh-mingw/toolchain_gcc_final.sh	2022-09-18 13:27:35.665868726 -0400
+@@ -15,25 +15,19 @@
  
  # Start the build
  
@@ -116,10 +116,13 @@ diff -Naur cross-sh/toolchain_gcc_final.sh cross-sh-mingw/toolchain_gcc_final.sh
 -  find /pkgs/$TARGET_CROSS-$pkg/usr/bin/ /pkgs/$TARGET_CROSS-$pkg/usr/libexec/gcc/$TARGET_CROSS/ -type f -and \( -executable \) -exec strip '{}' \;
 -# Strip the target libs
 -find /pkgs/$TARGET_CROSS-$pkg/usr/$TARGET_CROSS/lib64 -type f -executable -name '*.so*' -exec $TARGET_CROSS-strip {} \;
-+find /pkgs/$TARGET_CROSS-$pkg/usr/bin/ -type f -and \( -executable \) -exec strip '{}' \;
- 
+-
++find /pkgs/$TARGET_CROSS-$pkg/usr/bin/ -type f -and \( -executable \) -name '*.so*' -exec strip '{}' \;
++strip /pkgs/$TARGET_CROSS-$pkg/usr/libexec/gcc/$TARGET_CROSS/12.2.0/{cc1*,collect2,lto*}
++rm -r /pkgs/$TARGET_CROSS-$pkg/usr/share
  # Delete the old files
  cd $BUILD_DIR
+ rm -rf $pkg-$CC_VER
 diff -Naur cross-sh/toolchain_gcc_static.sh cross-sh-mingw/toolchain_gcc_static.sh
 --- cross-sh/toolchain_gcc_static.sh	2022-09-18 13:10:38.143029249 -0400
 +++ cross-sh-mingw/toolchain_gcc_static.sh	2022-09-18 13:09:53.850862119 -0400
