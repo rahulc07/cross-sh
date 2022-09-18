@@ -1,6 +1,6 @@
 diff -Naur cross-sh/package.sh cross-sh-tucana/package.sh
 --- cross-sh/package.sh	1969-12-31 19:00:00.000000000 -0500
-+++ cross-sh-tucana/package.sh	2022-09-11 12:31:53.777592015 -0400
++++ cross-sh-tucana/package.sh	2022-09-17 13:39:01.352031996 -0400
 @@ -0,0 +1,11 @@
 +#!/bin/bash
 +source toolchain.conf
@@ -14,9 +14,9 @@ diff -Naur cross-sh/package.sh cross-sh-tucana/package.sh
 +tar -cvzpf $TARGET_CROSS-linux-api-headers.tar.xz $TARGET_CROSS-linux-api-headers
 +mv $TARGET_CROSS*.tar.xz /finished
 diff -Naur cross-sh/toolchain_binutils.sh cross-sh-tucana/toolchain_binutils.sh
---- cross-sh/toolchain_binutils.sh	2022-09-11 12:32:55.241638766 -0400
-+++ cross-sh-tucana/toolchain_binutils.sh	2022-09-11 12:31:53.777592015 -0400
-@@ -15,12 +15,12 @@
+--- cross-sh/toolchain_binutils.sh	2022-09-17 20:45:01.583436368 -0400
++++ cross-sh-tucana/toolchain_binutils.sh	2022-09-17 13:55:40.355267513 -0400
+@@ -15,12 +15,27 @@
  mkdir build
  cd build
  
@@ -31,9 +31,24 @@ diff -Naur cross-sh/toolchain_binutils.sh cross-sh-tucana/toolchain_binutils.sh
  # Delete the old files
  cd $BUILD_DIR
  rm -rf $pkg-$LD_VER
++# Remove conflicting files conflicting with the host
++cd /pkgs/$TARGET_CROSS-$pkg
++rm -rf usr/share/info
++rm -rf usr/include
++rm -rf usr/etc/gprofng.rc
++rm -rf usr/lib/gprofng
++# Strip 
++cd /pkgs/$TARGET_CROSS-$pkg/usr/bin
++for binary in $(ls .)
++do
++	if [[ ! "$binary" == "$TARGET_CROSS-gp-display-html" ]]
++	then
++		strip $binary
++	fi
++done
 diff -Naur cross-sh/toolchain.conf cross-sh-tucana/toolchain.conf
---- cross-sh/toolchain.conf	2022-09-11 12:32:55.241638766 -0400
-+++ cross-sh-tucana/toolchain.conf	2022-09-11 12:31:53.777592015 -0400
+--- cross-sh/toolchain.conf	2022-09-17 20:45:01.583436368 -0400
++++ cross-sh-tucana/toolchain.conf	2022-09-17 13:31:40.931899025 -0400
 @@ -1,32 +1,34 @@
  #!/bin/bash
  
@@ -83,8 +98,8 @@ diff -Naur cross-sh/toolchain.conf cross-sh-tucana/toolchain.conf
  #NEWLIB_VERSION
  # https://github.com/picolibc/picolibc
 diff -Naur cross-sh/toolchain_gcc_final.sh cross-sh-tucana/toolchain_gcc_final.sh
---- cross-sh/toolchain_gcc_final.sh	2022-09-11 12:32:55.241638766 -0400
-+++ cross-sh-tucana/toolchain_gcc_final.sh	2022-09-11 12:32:37.697341205 -0400
+--- cross-sh/toolchain_gcc_final.sh	2022-09-17 20:45:01.583436368 -0400
++++ cross-sh-tucana/toolchain_gcc_final.sh	2022-09-17 13:31:40.931899025 -0400
 @@ -25,11 +25,13 @@
  mkdir build
  cd build
@@ -104,8 +119,8 @@ diff -Naur cross-sh/toolchain_gcc_final.sh cross-sh-tucana/toolchain_gcc_final.s
  # Delete the old files
  cd $BUILD_DIR
 diff -Naur cross-sh/toolchain_gcc_static.sh cross-sh-tucana/toolchain_gcc_static.sh
---- cross-sh/toolchain_gcc_static.sh	2022-09-11 12:32:55.241638766 -0400
-+++ cross-sh-tucana/toolchain_gcc_static.sh	2022-09-11 12:31:53.777592015 -0400
+--- cross-sh/toolchain_gcc_static.sh	2022-09-17 20:45:01.583436368 -0400
++++ cross-sh-tucana/toolchain_gcc_static.sh	2022-09-17 13:31:40.931899025 -0400
 @@ -2,7 +2,7 @@
  set -e
  # Source the configuration
@@ -116,8 +131,8 @@ diff -Naur cross-sh/toolchain_gcc_static.sh cross-sh-tucana/toolchain_gcc_static
  # Untar
  
 diff -Naur cross-sh/toolchain_glibc.sh cross-sh-tucana/toolchain_glibc.sh
---- cross-sh/toolchain_glibc.sh	2022-09-11 12:32:55.241638766 -0400
-+++ cross-sh-tucana/toolchain_glibc.sh	2022-09-11 12:31:53.777592015 -0400
+--- cross-sh/toolchain_glibc.sh	2022-09-17 20:45:01.583436368 -0400
++++ cross-sh-tucana/toolchain_glibc.sh	2022-09-17 13:31:40.931899025 -0400
 @@ -15,12 +15,12 @@
  mkdir build
  cd build
@@ -135,8 +150,8 @@ diff -Naur cross-sh/toolchain_glibc.sh cross-sh-tucana/toolchain_glibc.sh
  cd $BUILD_DIR
  rm -rf $pkg-$GLIBC_VER
 diff -Naur cross-sh/toolchain_linux_headers.sh cross-sh-tucana/toolchain_linux_headers.sh
---- cross-sh/toolchain_linux_headers.sh	2022-09-11 12:32:55.241638766 -0400
-+++ cross-sh-tucana/toolchain_linux_headers.sh	2022-09-11 12:31:53.778592032 -0400
+--- cross-sh/toolchain_linux_headers.sh	2022-09-17 20:45:01.583436368 -0400
++++ cross-sh-tucana/toolchain_linux_headers.sh	2022-09-17 13:31:40.932899025 -0400
 @@ -18,8 +18,11 @@
  # Start the build
  
@@ -151,7 +166,7 @@ diff -Naur cross-sh/toolchain_linux_headers.sh cross-sh-tucana/toolchain_linux_h
  cd $BUILD_DIR
  rm -rf $pkg-$KERNEL_VER
 diff -Naur cross-sh/toolchain_musl.sh cross-sh-tucana/toolchain_musl.sh
---- cross-sh/toolchain_musl.sh	2022-09-11 12:32:55.241638766 -0400
+--- cross-sh/toolchain_musl.sh	2022-09-17 20:45:01.583436368 -0400
 +++ cross-sh-tucana/toolchain_musl.sh	1969-12-31 19:00:00.000000000 -0500
 @@ -1,26 +0,0 @@
 -#!/bin/bash
@@ -181,7 +196,7 @@ diff -Naur cross-sh/toolchain_musl.sh cross-sh-tucana/toolchain_musl.sh
 -cd $BUILD_DIR
 -rm -rf $pkg-$MUSL_VER
 diff -Naur cross-sh/toolchain_newlib.sh cross-sh-tucana/toolchain_newlib.sh
---- cross-sh/toolchain_newlib.sh	2022-09-11 12:32:55.241638766 -0400
+--- cross-sh/toolchain_newlib.sh	2022-09-17 20:45:01.583436368 -0400
 +++ cross-sh-tucana/toolchain_newlib.sh	1969-12-31 19:00:00.000000000 -0500
 @@ -1,26 +0,0 @@
 -#!/bin/bash
@@ -211,7 +226,7 @@ diff -Naur cross-sh/toolchain_newlib.sh cross-sh-tucana/toolchain_newlib.sh
 -cd $BUILD_DIR
 -rm -rf $pkg-$NEWLIB_VER
 diff -Naur cross-sh/toolchain_picolibc.sh cross-sh-tucana/toolchain_picolibc.sh
---- cross-sh/toolchain_picolibc.sh	2022-09-11 12:32:55.241638766 -0400
+--- cross-sh/toolchain_picolibc.sh	2022-09-17 20:45:01.583436368 -0400
 +++ cross-sh-tucana/toolchain_picolibc.sh	1969-12-31 19:00:00.000000000 -0500
 @@ -1,26 +0,0 @@
 -#!/bin/bash
@@ -241,8 +256,8 @@ diff -Naur cross-sh/toolchain_picolibc.sh cross-sh-tucana/toolchain_picolibc.sh
 -cd $BUILD_DIR
 -rm -rf $pkg-$PICOLIBC_VER
 diff -Naur cross-sh/wget cross-sh-tucana/wget
---- cross-sh/wget	2022-09-11 12:32:55.241638766 -0400
-+++ cross-sh-tucana/wget	2022-09-11 12:31:53.778592032 -0400
+--- cross-sh/wget	2022-09-17 20:45:01.583436368 -0400
++++ cross-sh-tucana/wget	2022-09-17 13:31:40.932899025 -0400
 @@ -1,10 +1,7 @@
 -https://ftp.gnu.org/gnu/gcc/gcc-12.1.0/gcc-12.1.0.tar.xz
 -https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.18.10.tar.xz
