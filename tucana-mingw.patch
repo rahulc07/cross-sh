@@ -45,10 +45,12 @@ diff -Naur cross-sh/build_toolchain.sh cross-sh-mingw/build_toolchain.sh
 +echo "Run package.sh"
 diff -Naur cross-sh/package.sh cross-sh-mingw/package.sh
 --- cross-sh/package.sh	2022-09-18 12:49:26.044374685 -0400
-+++ cross-sh-mingw/package.sh	2022-09-18 12:48:51.020197164 -0400
-@@ -7,5 +7,5 @@
++++ cross-sh-mingw/package.sh	2022-09-18 12:51:33.653710682 -0400
+@@ -5,7 +5,6 @@
+ echo "$TARGET_CROSS-binutils $TARGET_CROSS-gcc $TARGET_CROSS-glibc $TARGET_CROSS-linux-api-headers" > /pkgs/$TARGET_CROSS/var/cache/mercury/meta-pkgs/$TARGET_CROSS
+ cd /pkgs
  tar -cvzpf $TARGET_CROSS-gcc.tar.xz $TARGET_CROSS-gcc
- tar -cvzpf $TARGET_CROSS-glibc.tar.xz $TARGET_CROSS-glibc
+-tar -cvzpf $TARGET_CROSS-glibc.tar.xz $TARGET_CROSS-glibc
  tar -cvpzf $TARGET_CROSS-binutils.tar.xz $TARGET_CROSS-binutils
 -tar -cvzpf $TARGET_CROSS-linux-api-headers.tar.xz $TARGET_CROSS-linux-api-headers
 +tar -cvpzf $TARGET_CROSS-mingw.tar.xz $TARGET_CROSS-mingw
